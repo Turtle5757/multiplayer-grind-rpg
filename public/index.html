@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NET_BREACH | Multiplayer RPG</title>
+    <title>Multiplayer PvP RPG</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -11,24 +11,24 @@
 
     <div id="login-screen">
         <div class="login-box">
-            <h1>NET_BREACH</h1>
-            <input type="text" id="username" placeholder="Username" maxlength="12">
+            <h1 style="color: #ff4d4d;">PVP BRAWL ONLINE</h1>
+            <input type="text" id="username" placeholder="Character Name" maxlength="12">
             <input type="password" id="password" placeholder="Password">
             
-            <p>Select Your Class:</p>
+            <p>Select Your Fighting Style:</p>
             <div class="class-selector">
                 <button id="Warrior" class="class-btn active" onclick="setClass('Warrior')">
-                    <b>WARRIOR</b><br><small>High HP / Melee</small>
+                    <b>WARRIOR</b><br><small>Tanky / Melee</small>
                 </button>
                 <button id="Archer" class="class-btn" onclick="setClass('Archer')">
-                    <b>ARCHER</b><br><small>Fast / Long Range</small>
+                    <b>ARCHER</b><br><small>Fast / Range</small>
                 </button>
                 <button id="Mage" class="class-btn" onclick="setClass('Mage')">
                     <b>MAGE</b><br><small>Glass Cannon</small>
                 </button>
             </div>
 
-            <button class="start-btn" onclick="startGame()">ENTER WORLD</button>
+            <button class="start-btn" onclick="startGame()">SPAWN & FIGHT</button>
         </div>
     </div>
 
@@ -39,7 +39,7 @@
                 <div class="bar-bg"><div id="hp-fill" class="bar-fill hp"></div></div>
             </div>
             <div class="stat-group">
-                <span class="label">LEVEL <span id="lvl">1</span></span>
+                <span class="label">LVL <span id="lvl">1</span></span>
                 <span id="p-class" class="class-tag">WARRIOR</span>
             </div>
             <button class="fs-btn" onclick="toggleFullscreen()">📺 FULLSCREEN</button>
@@ -52,7 +52,7 @@
         </div>
 
         <div class="controls-hint">
-            WASD: Move | Click: Attack/Train | C: Craft Potion
+            WASD: Move | Click: Attack/Train | C: Craft | Gym/Track/Lake for Stats
         </div>
     </div>
 
