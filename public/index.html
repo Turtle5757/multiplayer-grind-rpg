@@ -1,34 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Grind RPG - Classes</title>
+    <title>Ultimate Grind RPG V4</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="login-screen">
         <div class="modal">
-            <h1>GRIND RPG</h1>
+            <h1>GRIND RPG v4</h1>
             <input type="text" id="username" placeholder="Name" maxlength="10"><br>
             <input type="password" id="password" placeholder="Password"><br>
             
             <div id="class-select">
-                <p>Select a Class (New Players):</p>
-                <button onclick="setClass('Warrior')" class="class-btn" id="Warrior">Warrior</button>
-                <button onclick="setClass('Archer')" class="class-btn" id="Archer">Archer</button>
-                <button onclick="setClass('Mage')" class="class-btn" id="Mage">Mage</button>
+                <p>New Player? Pick a Class:</p>
+                <div class="class-list">
+                    <button onclick="setClass('Warrior')" class="class-btn selected" id="Warrior">
+                        WARRIOR<br><span class="desc">High Def, Low Spd</span>
+                    </button>
+                    <button onclick="setClass('Archer')" class="class-btn" id="Archer">
+                        ARCHER<br><span class="desc">High Spd, Long Rng</span>
+                    </button>
+                    <button onclick="setClass('Mage')" class="class-btn" id="Mage">
+                        MAGE<br><span class="desc">High Str, Low HP</span>
+                    </button>
+                </div>
             </div>
 
-            <button onclick="startGame()" style="background:#00ff00; color:black; margin-top:20px;">ENTER WORLD</button>
-            <div id="login-msg" style="margin-top: 10px; font-size: 12px;"></div>
+            <button onclick="startGame()" style="background:#00ff00; color:black; margin-top:20px; width:100%; border-radius:5px;">ENTER WORLD</button>
+            <div id="login-msg" style="margin-top: 10px; font-size: 12px; color: red;"></div>
         </div>
     </div>
 
     <div id="gui" style="display:none;">
         <div class="stats">
-            <span id="charClass" style="color:gold;">CLASS</span> | LVL <span id="lvl">1</span> | STR <span id="str">0</span> | GOLD: $<span id="gold">0</span>
+            <span id="p-class" style="color:gold;">CLASS</span> | LVL <span id="lvl">1</span> | STR <span id="str">0</span> | DEF <span id="def">0</span> | SPD <span id="spd">0</span><br>
+            GOLD: $<span id="gold">0</span>
         </div>
-        <div class="bar-bg"><div id="hp-fill" class="fill hp"></div></div>
-        <div class="bar-bg"><div id="xp-fill" class="fill xp"></div></div>
+        <div class="bar-bg hp"><div id="hp-fill" class="fill hp"></div></div>
+        <div class="bar-bg xp"><div id="xp-fill" class="fill xp"></div></div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
