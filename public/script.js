@@ -7,24 +7,19 @@ let myId, players = {}, monsters = [], rooms = {}, portals = [], resources = [],
 let selectedClass = 'Warrior';
 const keys = { w: false, a: false, s: false, d: false };
 
-// --- CLASS BUTTON LOGIC ---
 function setClass(c) {
     selectedClass = c;
     document.querySelectorAll('.class-btn').forEach(b => {
         b.style.border = "2px solid #555";
         b.style.backgroundColor = "#444";
     });
-    const selectedBtn = document.getElementById(c);
-    if (selectedBtn) {
-        selectedBtn.style.border = "2px solid yellow";
-        selectedBtn.style.backgroundColor = "#666";
-    }
+    const btn = document.getElementById(c);
+    if(btn) { btn.style.border = "2px solid yellow"; btn.style.backgroundColor = "#666"; }
 }
 
 window.addEventListener('keydown', e => { 
     const k = e.key.toLowerCase();
     if(keys.hasOwnProperty(k)) keys[k] = true; 
-    if (k === 'c' && isPlaying) socket.emit('craft', 'power_potion');
 });
 window.addEventListener('keyup', e => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; });
 window.addEventListener('mousedown', () => { if(isPlaying) socket.emit('attack'); });
@@ -50,6 +45,8 @@ socket.on('update', data => {
         document.getElementById('p-class').innerText = me.charClass.toUpperCase();
         document.getElementById('lvl').innerText = me.level;
         document.getElementById('str').innerText = Math.floor(me.str);
+        document.getElementById('def').innerText = Math.floor(me.def);
+        document.getElementById('spd').innerText = me.spd.toFixed(1);
         document.getElementById('hp-fill').style.width = (me.hp/me.maxHp*100) + "%";
     }
 });
@@ -62,7 +59,6 @@ function draw() {
     const myRoomKey = me.room;
     ctx.fillStyle = rooms[myRoomKey].bg; ctx.fillRect(0, 0, 800, 600);
     
-    // Draw Portals
     portals.forEach(pt => {
         if (pt.fromRoom === myRoomKey) {
             ctx.fillStyle = pt.color; ctx.globalAlpha = 0.5;
@@ -71,13 +67,11 @@ function draw() {
         }
     });
 
-    // Storage Chest (Hub only)
     if (myRoomKey === 'hub') {
         ctx.fillStyle = '#5d4037'; ctx.fillRect(380, 280, 40, 40);
         ctx.fillStyle = 'white'; ctx.fillText("CHEST", 400, 275);
     }
 
-    // Resources
     resources.forEach(r => {
         if (r.room === myRoomKey && r.hp > 0) {
             ctx.fillStyle = (r.type === 'wood' ? '#8b4513' : '#78909c');
@@ -85,19 +79,20 @@ function draw() {
         }
     });
 
-    // Monsters
+    // --- DRAW MONSTERS WITH HP BARS ---
     monsters.forEach(m => {
         if (m.room === myRoomKey && m.isAlive) {
             ctx.fillStyle = '#ef5350'; ctx.beginPath(); ctx.arc(m.x, m.y, 20, 0, Math.PI*2); ctx.fill();
+            // HP Bar
+            ctx.fillStyle = 'black'; ctx.fillRect(m.x - 20, m.y - 30, 40, 5);
+            ctx.fillStyle = 'red'; ctx.fillRect(m.x - 20, m.y - 30, (m.hp/m.maxHp) * 40, 5);
         }
     });
 
-    // Players
     for (let id in players) {
         let p = players[id];
         if (p.room === myRoomKey) {
             ctx.fillStyle = p.color;
-            // Draw Class Shape
             if(p.charClass === 'Warrior') ctx.fillRect(p.x-15, p.y-15, 30, 30);
             else if(p.charClass === 'Archer') { ctx.beginPath(); ctx.moveTo(p.x, p.y-18); ctx.lineTo(p.x-18, p.y+15); ctx.lineTo(p.x+18, p.y+15); ctx.fill(); }
             else { ctx.beginPath(); ctx.arc(p.x, p.y, 16, 0, Math.PI*2); ctx.fill(); }
@@ -105,15 +100,13 @@ function draw() {
             ctx.fillStyle = 'white'; ctx.fillText(p.name, p.x, p.y - 25);
             
             if(id === myId) {
-                // ZONE HINTS
                 ctx.fillStyle = "yellow";
                 if(p.room === 'gym') ctx.fillText("CLICK TO TRAIN STR!", p.x, p.y + 45);
                 if(p.room === 'track') ctx.fillText("RUN TO TRAIN SPD!", p.x, p.y + 45);
                 if(p.room === 'lake') ctx.fillText("STAY STILL FOR DEF!", p.x, p.y + 45);
                 
-                // INVENTORY
                 ctx.textAlign = "left"; ctx.fillStyle = "#fff";
-                ctx.fillText(`🎒 Wood: ${p.backpack.wood + p.bank.wood} | Stone: ${p.backpack.stone + p.bank.stone}`, 10, 580);
+                ctx.fillText(`🎒 Wood: ${p.backpack.wood + p.bank.wood} Stone: ${p.backpack.stone + p.bank.stone}`, 10, 580);
                 ctx.textAlign = "center";
             }
         }
