@@ -11,17 +11,21 @@ app.use(express.static('public'));
 
 let db = { users: {} };
 const DB_PATH = './users.json'; 
-
 if (fs.existsSync(DB_PATH)) {
-    try { db = JSON.parse(fs.readFileSync(DB_PATH)); } catch (e) { console.log("DB Load Error"); }
+    try { db = JSON.parse(fs.readFileSync(DB_PATH)); } catch (e) { console.log("DB Error"); }
 }
-
 function saveDB() { fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2)); }
 
+// Game State
 let players = {};
+let resources = [
+    { id: 1, x: 200, y: 200, type: 'wood', room: 'hub', hp: 5, respawn: 0 },
+    { id: 2, x: 600, y: 400, type: 'stone', room: 'hub', hp: 5, respawn: 0 }
+];
+
 let monsters = [
-    { id: 1, x: 400, y: 300, hp: 100, maxHp: 100, str: 8, room: 'dungeon', isAlive: true, type: 'slime' },
-    { id: 2, x: 200, y: 500, hp: 250, maxHp: 250, str: 15, room: 'dungeon', isAlive: true, type: 'skeleton' }
+    { id: 101, x: 400, y: 300, hp: 100, maxHp: 100, str: 8, room: 'dungeon', isAlive: true },
+    { id: 102, x: 200, y: 500, hp: 250, maxHp: 250, str: 15, room: 'dungeon', isAlive: true }
 ];
 
 const rooms = {
@@ -61,12 +65,13 @@ io.on('connection', (socket) => {
                 name: data.name, password: data.password, charClass: data.charClass,
                 level: 1, hp: stats.maxHp, maxHp: stats.maxHp, xp: 0, nextLevel: 100,
                 str: stats.str, def: stats.def, spd: stats.spd, gold: 0,
+                inv: { wood: 0, stone: 0 },
                 color: `hsl(${Math.random() * 360}, 70%, 50%)`
             };
             db.users[username] = newAcc; saveDB();
             players[socket.id] = { ...newAcc, x: 400, y: 300, room: 'hub', lastTeleport: 0, clickTimes: [] };
         }
-        socket.emit('init', { id: socket.id, players, monsters, rooms, portals });
+        socket.emit('init', { id: socket.id, players, monsters, resources, rooms, portals });
     });
 
     socket.on('move', (keys) => {
@@ -76,7 +81,6 @@ io.on('connection', (socket) => {
         if (keys.w) p.y -= p.spd; if (keys.s) p.y += p.spd; if (keys.a) p.x -= p.spd; if (keys.d) p.x += p.spd;
         p.x = Math.max(20, Math.min(780, p.x)); p.y = Math.max(20, Math.min(580, p.y));
 
-        // ACTIVE TRAINING
         if (p.room === 'track' && isMoving) p.spd += 0.002;
         if (p.room === 'lake' && !isMoving) p.def += 0.02;
 
@@ -88,45 +92,47 @@ io.on('connection', (socket) => {
                 }
             });
         }
-        io.emit('update', { players, monsters });
+        io.emit('update', { players, monsters, resources });
     });
 
     socket.on('attack', () => {
-        const p = players[socket.id];
-        if (!p) return;
+        const p = players[socket.id]; if (!p) return;
 
-        // --- ANTICLICKER PREVENTION ---
+        // Anti-Cheat
         let now = Date.now();
-        if (p.lastClick) {
-            let diff = now - p.lastClick;
-            if (diff < 100) return; // Cap at 10 clicks per second
-            p.clickTimes.push(diff);
-            if (p.clickTimes.length > 10) {
-                p.clickTimes.shift();
-                let sum = p.clickTimes.reduce((a, b) => a + b);
-                let avg = sum / 10;
-                let variance = p.clickTimes.every(v => Math.abs(v - avg) < 2);
-                if (variance) { socket.emit('loginError', "Autoclicker detected! Slow down."); return; }
-            }
-        }
+        if (p.lastClick && (now - p.lastClick < 100)) return;
         p.lastClick = now;
 
-        // TRAINING: GYM
         if (p.room === 'gym') p.str += 0.1;
 
-        // COMBAT
         let range = p.charClass === 'Archer' ? 160 : p.charClass === 'Mage' ? 110 : 70;
+
+        // Resource Gathering
+        resources.forEach(r => {
+            if (r.room === p.room && r.hp > 0 && Math.hypot(p.x - r.x, p.y - r.y) < 60) {
+                r.hp -= 1;
+                if (r.hp <= 0) {
+                    p.inv[r.type] = (p.inv[r.type] || 0) + 5;
+                    r.respawn = now + 10000;
+                }
+            }
+        });
+
+        // Monster Fix
         monsters.forEach(m => {
             if (m.room === p.room && m.isAlive && Math.hypot(p.x - m.x, p.y - m.y) < range) {
                 m.hp -= p.str / 4;
                 if (m.hp <= 0) {
                     m.isAlive = false; p.xp += 50; p.gold += 30;
-                    if (p.xp >= p.nextLevel) { p.level++; p.xp = 0; p.nextLevel *= 1.5; p.maxHp += 20; p.hp = p.maxHp; }
+                    if (p.xp >= p.nextLevel) { 
+                        p.level++; p.xp = 0; p.nextLevel *= 1.5; p.maxHp += 20; p.hp = p.maxHp; 
+                    }
                     setTimeout(() => { m.hp = m.maxHp; m.isAlive = true; }, 5000);
                 }
             }
         });
 
+        // PvP
         if (rooms[p.room].pvp) {
             for (let id in players) {
                 if (id === socket.id) continue;
@@ -140,19 +146,30 @@ io.on('connection', (socket) => {
                 }
             }
         }
+        io.emit('update', { players, monsters, resources });
+    });
+
+    socket.on('craft', (item) => {
+        const p = players[socket.id];
+        if (item === 'power_potion' && p.inv.wood >= 10 && p.inv.stone >= 10) {
+            p.inv.wood -= 10; p.inv.stone -= 10; p.str += 5;
+            socket.emit('msg', 'Crafted Power Potion! +5 STR');
+        }
     });
 
     socket.on('disconnect', () => {
         if (players[socket.id]) {
-            const username = players[socket.id].name.toLowerCase();
-            db.users[username] = { ...players[socket.id] };
-            delete db.users[username].clickTimes;
+            db.users[players[socket.id].name.toLowerCase()] = { ...players[socket.id] };
             saveDB();
         }
         delete players[socket.id];
-        io.emit('update', { players, monsters });
     });
 });
 
-setInterval(saveDB, 60000);
+setInterval(() => {
+    let now = Date.now();
+    resources.forEach(r => { if (r.hp <= 0 && now > r.respawn) { r.hp = 5; } });
+    io.emit('update', { players, monsters, resources });
+}, 1000);
+
 server.listen(process.env.PORT || 3000);
