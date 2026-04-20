@@ -1,1 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ultimate Grind RPG</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="gui">
+        <div class="stats">LVL <span id="lvl">1</span> | STR <span id="str">10</span> | GOLD $<span id="gold">0</span></div>
+        <div class="bar-bg"><div id="hp-fill" class="fill hp"></div></div>
+        <div class="bar-bg"><div id="xp-fill" class="fill xp"></div></div>
+    </div>
+    
+    <div id="leaderboard">
+        <h3>TOP GRINDERS</h3>
+        <div id="leader-list"></div>
+    </div>
 
+    <canvas id="gameCanvas"></canvas>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
