@@ -1,24 +1,31 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Grind RPG</title>
+    <title>Grind RPG - Classes</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="login-screen">
         <div class="modal">
             <h1>GRIND RPG</h1>
-            <input type="text" id="username" placeholder="Character Name" maxlength="10"><br>
+            <input type="text" id="username" placeholder="Name" maxlength="10"><br>
             <input type="password" id="password" placeholder="Password"><br>
-            <button onclick="startGame()">ENTER WORLD</button>
+            
+            <div id="class-select">
+                <p>Select a Class (New Players):</p>
+                <button onclick="setClass('Warrior')" class="class-btn" id="Warrior">Warrior</button>
+                <button onclick="setClass('Archer')" class="class-btn" id="Archer">Archer</button>
+                <button onclick="setClass('Mage')" class="class-btn" id="Mage">Mage</button>
+            </div>
+
+            <button onclick="startGame()" style="background:#00ff00; color:black; margin-top:20px;">ENTER WORLD</button>
             <div id="login-msg" style="margin-top: 10px; font-size: 12px;"></div>
         </div>
     </div>
 
     <div id="gui" style="display:none;">
         <div class="stats">
-            LVL <span id="lvl">1</span> | STR <span id="str">0</span> | DEF <span id="def">0</span> | SPD <span id="spd">0</span><br>
-            GOLD: $<span id="gold">0</span>
+            <span id="charClass" style="color:gold;">CLASS</span> | LVL <span id="lvl">1</span> | STR <span id="str">0</span> | GOLD: $<span id="gold">0</span>
         </div>
         <div class="bar-bg"><div id="hp-fill" class="fill hp"></div></div>
         <div class="bar-bg"><div id="xp-fill" class="fill xp"></div></div>
