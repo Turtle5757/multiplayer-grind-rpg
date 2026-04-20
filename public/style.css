@@ -1,0 +1,11 @@
+body { margin: 0; background: #1a1a1a; color: white; font-family: 'Courier New', monospace; overflow: hidden; }
+#gui { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; }
+.stats { font-size: 24px; text-shadow: 2px 2px black; margin-bottom: 10px; }
+.bar-bg { width: 250px; height: 20px; background: #333; border: 2px solid white; margin-bottom: 5px; }
+.fill { height: 100%; transition: width 0.1s; }
+.hp { background: #ff4747; width: 100%; }
+.xp { background: #47ff47; width: 0%; }
+#leaderboard { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.7); padding: 15px; border: 1px solid #444; min-width: 150px; }
+h3 { margin: 0 0 10px 0; font-size: 14px; color: #aaa; }
+.leader-item { font-size: 14px; margin-bottom: 4px; }
+canvas { display: block; cursor: crosshair; }
