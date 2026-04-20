@@ -1,47 +1,63 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Ultimate Grind RPG V4</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NET_BREACH | Multiplayer RPG</title>
     <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
+
     <div id="login-screen">
-        <div class="modal">
-            <h1>GRIND RPG v4</h1>
-            <input type="text" id="username" placeholder="Name" maxlength="10"><br>
-            <input type="password" id="password" placeholder="Password"><br>
+        <div class="login-box">
+            <h1>NET_BREACH</h1>
+            <input type="text" id="username" placeholder="Username" maxlength="12">
+            <input type="password" id="password" placeholder="Password">
             
-            <div id="class-select">
-                <p>New Player? Pick a Class:</p>
-                <div class="class-list">
-                    <button onclick="setClass('Warrior')" class="class-btn selected" id="Warrior">
-                        WARRIOR<br><span class="desc">High Def, Low Spd</span>
-                    </button>
-                    <button onclick="setClass('Archer')" class="class-btn" id="Archer">
-                        ARCHER<br><span class="desc">High Spd, Long Rng</span>
-                    </button>
-                    <button onclick="setClass('Mage')" class="class-btn" id="Mage">
-                        MAGE<br><span class="desc">High Str, Low HP</span>
-                    </button>
-                </div>
+            <p>Select Your Class:</p>
+            <div class="class-selector">
+                <button id="Warrior" class="class-btn active" onclick="setClass('Warrior')">
+                    <b>WARRIOR</b><br><small>High HP / Melee</small>
+                </button>
+                <button id="Archer" class="class-btn" onclick="setClass('Archer')">
+                    <b>ARCHER</b><br><small>Fast / Long Range</small>
+                </button>
+                <button id="Mage" class="class-btn" onclick="setClass('Mage')">
+                    <b>MAGE</b><br><small>Glass Cannon</small>
+                </button>
             </div>
 
-            <button onclick="startGame()" style="background:#00ff00; color:black; margin-top:20px; width:100%; border-radius:5px;">ENTER WORLD</button>
-            <div id="login-msg" style="margin-top: 10px; font-size: 12px; color: red;"></div>
+            <button class="start-btn" onclick="startGame()">ENTER WORLD</button>
         </div>
     </div>
 
     <div id="gui" style="display:none;">
-        <div class="stats">
-            <span id="p-class" style="color:gold;">CLASS</span> | LVL <span id="lvl">1</span> | STR <span id="str">0</span> | DEF <span id="def">0</span> | SPD <span id="spd">0</span><br>
-            GOLD: $<span id="gold">0</span>
+        <div class="top-bar">
+            <div class="stat-group">
+                <span class="label">HP</span>
+                <div class="bar-bg"><div id="hp-fill" class="bar-fill hp"></div></div>
+            </div>
+            <div class="stat-group">
+                <span class="label">LEVEL <span id="lvl">1</span></span>
+                <span id="p-class" class="class-tag">WARRIOR</span>
+            </div>
+            <button class="fs-btn" onclick="toggleFullscreen()">📺 FULLSCREEN</button>
         </div>
-        <div class="bar-bg hp"><div id="hp-fill" class="fill hp"></div></div>
-        <div class="bar-bg xp"><div id="xp-fill" class="fill xp"></div></div>
+
+        <div class="side-stats">
+            <p>⚔️ STR: <span id="str">0</span></p>
+            <p>🛡️ DEF: <span id="def">0</span></p>
+            <p>⚡ SPD: <span id="spd">0</span></p>
+        </div>
+
+        <div class="controls-hint">
+            WASD: Move | Click: Attack/Train | C: Craft Potion
+        </div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
-    <script src="/socket.io/socket.io.js"></script>
+
     <script src="script.js"></script>
 </body>
 </html>
