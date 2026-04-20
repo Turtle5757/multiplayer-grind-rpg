@@ -24,16 +24,15 @@ const rooms = {
 
 io.on('connection', (socket) => {
     socket.on('login', (data) => {
-        // Simple server-side session start
         players[socket.id] = {
             x: 400, y: 300, room: 'hub',
             hp: data.hp || 100, maxHp: data.maxHp || 100,
             level: data.level || 1, xp: data.xp || 0, nextLevel: data.nextLevel || 100,
             str: data.str || 10, def: data.def || 5, spd: data.spd || 3,
             gold: data.gold || 0, name: data.name || "Noob",
+            password: data.password, // Store for local saving
             color: data.color || `hsl(${Math.random() * 360}, 70%, 50%)`
         };
-        // Send EVERYTHING needed to start the game
         socket.emit('init', { id: socket.id, players, monsters, rooms });
     });
 
@@ -46,7 +45,7 @@ io.on('connection', (socket) => {
         if (keys.a) p.x -= p.spd;
         if (keys.d) p.x += p.spd;
 
-        // Boundaries and Transitions
+        // Room Transitions
         if (p.room === 'hub') {
             if (p.y < 0) { p.room = 'track'; p.y = 550; }
             if (p.y > 600) { p.room = 'gym'; p.y = 50; }
@@ -60,7 +59,7 @@ io.on('connection', (socket) => {
         }
 
         const roomData = rooms[p.room];
-        if (roomData.stat) p[roomData.stat] += roomData.rate;
+        if (roomData && roomData.stat) p[roomData.stat] += roomData.rate;
         io.emit('update', { players, monsters });
     });
 
