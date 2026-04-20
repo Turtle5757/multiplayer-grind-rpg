@@ -24,9 +24,10 @@ let resources = [
     { id: 3, x: 200, y: 400, type: 'wood', room: 'hub', hp: 5, respawn: 0 }
 ];
 
+// MONSTERS WITH STATS
 let monsters = [
-    { id: 101, x: 400, y: 300, hp: 100, maxHp: 100, str: 8, room: 'dungeon', isAlive: true },
-    { id: 102, x: 200, y: 500, hp: 250, maxHp: 250, str: 15, room: 'dungeon', isAlive: true }
+    { id: 101, x: 400, y: 300, hp: 100, maxHp: 100, str: 8, room: 'dungeon', isAlive: true, spd: 1.5 },
+    { id: 102, x: 200, y: 500, hp: 250, maxHp: 250, str: 15, room: 'dungeon', isAlive: true, spd: 1.0 }
 ];
 
 const rooms = {
@@ -54,19 +55,14 @@ const portals = [
 io.on('connection', (socket) => {
     socket.on('login', (data) => {
         const username = data.name.toLowerCase();
-        // SPAWN POINT OFFSET TO (450, 350)
         if (db.users[username]) {
             if (db.users[username].password !== data.password) { socket.emit('loginError', 'Wrong password!'); return; }
-            players[socket.id] = { 
-                ...db.users[username], x: 450, y: 350, room: 'hub', 
-                lastTeleport: 0, backpack: { wood: 0, stone: 0 } 
-            };
+            players[socket.id] = { ...db.users[username], x: 450, y: 350, room: 'hub', lastTeleport: 0, backpack: { wood: 0, stone: 0 } };
         } else {
             let stats = { str: 10, def: 5, spd: 3, maxHp: 100 };
             if (data.charClass === 'Warrior') stats = { str: 18, def: 10, spd: 2, maxHp: 160 };
             if (data.charClass === 'Archer') stats = { str: 12, def: 4, spd: 5.5, maxHp: 110 };
             if (data.charClass === 'Mage') stats = { str: 25, def: 2, spd: 3, maxHp: 90 };
-            
             const newAcc = {
                 name: data.name, password: data.password, charClass: data.charClass,
                 level: 1, hp: stats.maxHp, maxHp: stats.maxHp, xp: 0, nextLevel: 100,
@@ -87,18 +83,18 @@ io.on('connection', (socket) => {
         if (keys.w) p.y -= p.spd; if (keys.s) p.y += p.spd; 
         if (keys.a) p.x -= p.spd; if (keys.d) p.x += p.spd;
 
-        // --- TRAINING ZONE LOGIC ---
-        if (p.room === 'track' && isMoving) p.spd += 0.001; // Speedway
-        if (p.room === 'lake' && !isMoving) p.def += 0.015; // Zen Lake
+        // --- TRAINING LOGIC ---
+        if (p.room === 'track' && isMoving) p.spd += 0.001; 
+        if (p.room === 'lake' && !isMoving) p.def += 0.015;
 
         p.x = Math.max(20, Math.min(780, p.x)); p.y = Math.max(20, Math.min(580, p.y));
 
-        // STORAGE DEPOSIT (CHEST AT 400, 300)
-        if (p.room === 'hub' && Math.hypot(p.x - 400, p.y - 300) < 30) {
+        // STORAGE (Chest at 400, 300)
+        if (p.room === 'hub' && Math.hypot(p.x - 400, p.y - 300) < 35) {
             if (p.backpack.wood > 0 || p.backpack.stone > 0) {
                 p.bank.wood += p.backpack.wood; p.bank.stone += p.backpack.stone;
                 p.backpack.wood = 0; p.backpack.stone = 0;
-                socket.emit('msg', 'Resources Stored Safely!');
+                socket.emit('msg', 'Items Stored!');
             }
         }
 
@@ -110,17 +106,11 @@ io.on('connection', (socket) => {
                 }
             });
         }
-        io.emit('update', { players, monsters, resources });
     });
 
     socket.on('attack', () => {
         const p = players[socket.id]; if (!p) return;
-        
-        // --- TRAINING ZONE LOGIC: GYM ---
-        if (p.room === 'gym') {
-            p.str += 0.08;
-            socket.emit('msg', 'Gaining Strength...');
-        }
+        if (p.room === 'gym') p.str += 0.08;
 
         let range = p.charClass === 'Archer' ? 160 : p.charClass === 'Mage' ? 110 : 70;
 
@@ -132,7 +122,7 @@ io.on('connection', (socket) => {
 
         monsters.forEach(m => {
             if (m.room === p.room && m.isAlive && Math.hypot(p.x - m.x, p.y - m.y) < range) {
-                m.hp -= p.str / 4;
+                m.hp -= (p.str / 4);
                 if (m.hp <= 0) {
                     m.isAlive = false; p.xp += 50; p.gold += 30;
                     if (p.xp >= p.nextLevel) { p.level++; p.xp = 0; p.nextLevel *= 1.5; p.maxHp += 20; p.hp = p.maxHp; }
@@ -140,29 +130,6 @@ io.on('connection', (socket) => {
                 }
             }
         });
-
-        if (rooms[p.room].pvp) {
-            for (let id in players) {
-                if (id === socket.id) continue;
-                let t = players[id];
-                if (t.room === p.room && Math.hypot(p.x - t.x, p.y - t.y) < range) {
-                    t.hp -= Math.max(1, p.str - t.def);
-                    if (t.hp <= 0) {
-                        t.gold = Math.floor(t.gold * 0.8); t.hp = t.maxHp; 
-                        t.room = 'hub'; t.x = 450; t.y = 350; // Death Respawn Fix
-                    }
-                }
-            }
-        }
-        io.emit('update', { players, monsters, resources });
-    });
-
-    socket.on('craft', (item) => {
-        const p = players[socket.id];
-        if (item === 'power_potion' && p.bank.wood >= 10 && p.bank.stone >= 10) {
-            p.bank.wood -= 10; p.bank.stone -= 10; p.str += 5;
-            socket.emit('msg', 'Crafted Power Potion! +5 STR');
-        }
     });
 
     socket.on('disconnect', () => {
@@ -175,10 +142,46 @@ io.on('connection', (socket) => {
     });
 });
 
+// --- MONSTER AI & GAME LOOP ---
 setInterval(() => {
     let now = Date.now();
+    
+    // Resource Respawn
     resources.forEach(r => { if (r.hp <= 0 && now > r.respawn) r.hp = 5; });
+
+    // Monster AI Logic
+    monsters.forEach(m => {
+        if (!m.isAlive) return;
+
+        let target = null;
+        let minDist = 300; // Aggro range
+
+        for (let id in players) {
+            let p = players[id];
+            let d = Math.hypot(m.x - p.x, m.y - p.y);
+            if (p.room === m.room && d < minDist) {
+                minDist = d; target = p;
+            }
+        }
+
+        if (target) {
+            // Move toward player
+            let angle = Math.atan2(target.y - m.y, target.x - m.x);
+            m.x += Math.cos(angle) * m.spd;
+            m.y += Math.sin(angle) * m.spd;
+
+            // Attack player if close
+            if (minDist < 30 && (!m.lastAttack || now - m.lastAttack > 1000)) {
+                target.hp -= Math.max(1, m.str - target.def);
+                m.lastAttack = now;
+                if (target.hp <= 0) {
+                    target.hp = target.maxHp; target.room = 'hub'; target.x = 450; target.y = 350;
+                }
+            }
+        }
+    });
+
     io.emit('update', { players, monsters, resources });
-}, 1000);
+}, 50);
 
 server.listen(process.env.PORT || 3000);
