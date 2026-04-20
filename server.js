@@ -36,7 +36,8 @@ const rooms = {
     track: { name: "Speedway", bg: "#3d2b1f", floor: '#7f6c58', pvp: false },
     lake: { name: "Zen Lake", bg: "#001f3f", floor: '#0e3155', pvp: false },
     dungeon: { name: "Monster Dungeon", bg: "#1a0000", floor: '#331111', pvp: false },
-    arena: { name: "PVP ARENA", bg: "#4a0000", floor: '#661a00', pvp: true }
+    arena: { name: "PVP ARENA", bg: "#4a0000", floor: '#661a00', pvp: true },
+    shop: { name: "The Blacksmith", bg: "#2c3e50", floor: '#34495e', pvp: false }
 };
 
 const portals = [
@@ -44,10 +45,12 @@ const portals = [
     { fromRoom: 'hub', toRoom: 'gym', x: 400, y: 500, targetX: 400, targetY: 150, color: '#aaa', label: 'Gym' },
     { fromRoom: 'hub', toRoom: 'lake', x: 100, y: 300, targetX: 650, targetY: 300, color: '#00ccff', label: 'Lake' },
     { fromRoom: 'hub', toRoom: 'dungeon', x: 700, y: 300, targetX: 150, targetY: 300, color: '#aa3333', label: 'Dungeon' },
+    { fromRoom: 'hub', toRoom: 'shop', x: 700, y: 100, targetX: 400, targetY: 500, color: '#f1c40f', label: 'Blacksmith' },
     { fromRoom: 'track', toRoom: 'hub', x: 400, y: 550, targetX: 400, targetY: 200, color: '#fff', label: 'Village' },
     { fromRoom: 'gym', toRoom: 'hub', x: 400, y: 50, targetX: 400, targetY: 400, color: '#fff', label: 'Village' },
     { fromRoom: 'lake', toRoom: 'hub', x: 750, y: 300, targetX: 200, targetY: 300, color: '#fff', label: 'Village' },
     { fromRoom: 'dungeon', toRoom: 'hub', x: 50, y: 300, targetX: 600, targetY: 300, color: '#fff', label: 'Village' },
+    { fromRoom: 'shop', toRoom: 'hub', x: 400, y: 550, targetX: 700, targetY: 200, color: '#fff', label: 'Village' },
     { fromRoom: 'gym', toRoom: 'arena', x: 400, y: 550, targetX: 400, targetY: 150, color: '#ff3333', label: 'PVP ARENA!' },
     { fromRoom: 'arena', toRoom: 'gym', x: 400, y: 50, targetX: 400, targetY: 450, color: '#fff', label: 'Iron Gym' }
 ];
@@ -92,13 +95,11 @@ io.on('connection', (socket) => {
         if (keys.w) p.y -= p.spd; if (keys.s) p.y += p.spd; 
         if (keys.a) p.x -= p.spd; if (keys.d) p.x += p.spd;
 
-        // --- TRAINING LOGIC ---
         if (p.room === 'track' && isMoving) p.spd += 0.0012; 
         if (p.room === 'lake' && !isMoving) p.def += 0.018;
 
         p.x = Math.max(20, Math.min(780, p.x)); p.y = Math.max(20, Math.min(580, p.y));
 
-        // STORAGE DEPOSIT
         if (p.room === 'hub' && Math.hypot(p.x - 400, p.y - 300) < 40) {
             if (p.backpack.wood > 0 || p.backpack.stone > 0) {
                 p.bank.wood += p.backpack.wood; p.bank.stone += p.backpack.stone;
@@ -123,7 +124,6 @@ io.on('connection', (socket) => {
 
         let range = p.charClass === 'Archer' ? 180 : p.charClass === 'Mage' ? 130 : 70;
 
-        // PLAYER VS PLAYER (PVP)
         if (rooms[p.room].pvp) {
             for (let id in players) {
                 if (id === socket.id) continue;
@@ -140,12 +140,13 @@ io.on('connection', (socket) => {
             }
         }
 
-        // MONSTERS
         monsters.forEach(m => {
             if (m.room === p.room && m.isAlive && Math.hypot(p.x - m.x, p.y - m.y) < range) {
                 m.hp -= (p.str / 3);
                 if (m.hp <= 0) {
-                    m.isAlive = false; p.xp += 50; p.gold += 30;
+                    m.isAlive = false; 
+                    p.xp += 50; 
+                    p.gold += 50; // GOLD REWARD
                     if (p.xp >= p.nextLevel) { 
                         p.level++; p.xp = 0; p.nextLevel *= 1.4; p.maxHp += 25; p.hp = p.maxHp; 
                     }
@@ -154,12 +155,31 @@ io.on('connection', (socket) => {
             }
         });
 
-        // RESOURCES
         resources.forEach(r => {
             if (r.room === p.room && r.hp > 0 && Math.hypot(p.x - r.x, p.y - r.y) < 60) {
                 r.hp--; if (r.hp <= 0) { p.backpack[r.type] += 5; r.respawn = Date.now() + 10000; }
             }
         });
+    });
+
+    // --- SHOP LOGIC ---
+    socket.on('buyGear', (type) => {
+        const p = players[socket.id];
+        if (!p || p.room !== 'shop') return;
+
+        const costs = { sword: 150, armor: 150, boots: 150 };
+        if (p.gold >= costs[type]) {
+            p.gold -= costs[type];
+            if (type === 'sword') p.str += 15;
+            if (type === 'armor') { p.def += 12; p.maxHp += 60; p.hp = p.maxHp; }
+            if (type === 'boots') p.spd += 1.2;
+            
+            socket.emit('msg', `Upgraded ${type}!`);
+            io.emit('update', { players, monsters, resources });
+            saveDB();
+        } else {
+            socket.emit('msg', "Need more gold!");
+        }
     });
 
     socket.on('disconnect', () => {
@@ -172,7 +192,6 @@ io.on('connection', (socket) => {
     });
 });
 
-// --- MAIN LOOP (Monster AI & Respawns) ---
 setInterval(() => {
     let now = Date.now();
     resources.forEach(r => { if (r.hp <= 0 && now > r.respawn) r.hp = 5; });
@@ -199,4 +218,4 @@ setInterval(() => {
     io.emit('update', { players, monsters, resources });
 }, 50);
 
-server.listen(process.env.PORT || 3000, () => console.log("Server Running..."));
+server.listen(process.env.PORT || 3000);
