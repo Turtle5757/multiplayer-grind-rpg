@@ -4,28 +4,23 @@ const ctx = canvas.getContext('2d');
 canvas.width = 800; canvas.height = 600;
 
 let myId, players = {}, monsters = [], rooms = {}, portals = [], resources = [], isPlaying = false;
-let selectedClass = 'Warrior'; // Default
+let selectedClass = 'Warrior';
 const keys = { w: false, a: false, s: false, d: false };
 
-// --- CLASS SELECTION FIX ---
+// --- CLASS BUTTON LOGIC ---
 function setClass(c) {
     selectedClass = c;
-    // Reset all buttons
     document.querySelectorAll('.class-btn').forEach(b => {
         b.style.border = "2px solid #555";
         b.style.backgroundColor = "#444";
-        b.style.boxShadow = "none";
     });
-    // Highlight selected
-    const btn = document.getElementById(c);
-    if(btn) {
-        btn.style.border = "2px solid yellow";
-        btn.style.backgroundColor = "#666";
-        btn.style.boxShadow = "0 0 10px yellow";
+    const selectedBtn = document.getElementById(c);
+    if (selectedBtn) {
+        selectedBtn.style.border = "2px solid yellow";
+        selectedBtn.style.backgroundColor = "#666";
     }
 }
 
-// --- INPUTS ---
 window.addEventListener('keydown', e => { 
     const k = e.key.toLowerCase();
     if(keys.hasOwnProperty(k)) keys[k] = true; 
@@ -37,7 +32,6 @@ window.addEventListener('mousedown', () => { if(isPlaying) socket.emit('attack')
 function startGame() {
     const name = document.getElementById('username').value.trim();
     const pass = document.getElementById('password').value.trim();
-    if(!name || !pass) return alert("Enter name and pass!");
     socket.emit('login', { name, password: pass, charClass: selectedClass });
 }
 
@@ -66,65 +60,60 @@ function draw() {
     if (!isPlaying || !players[myId]) { requestAnimationFrame(draw); return; }
     const me = players[myId];
     const myRoomKey = me.room;
-    const time = Date.now();
-
-    // 1. Background Rendering
     ctx.fillStyle = rooms[myRoomKey].bg; ctx.fillRect(0, 0, 800, 600);
-    ctx.strokeStyle = rooms[myRoomKey].floor; ctx.globalAlpha = 0.2;
-    for(let i=0; i<800; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,600); ctx.stroke(); }
-    ctx.globalAlpha = 1.0;
     
-    // 2. Portals
+    // Draw Portals
     portals.forEach(pt => {
         if (pt.fromRoom === myRoomKey) {
-            let pSize = 30 + Math.sin(time/200) * 5;
             ctx.fillStyle = pt.color; ctx.globalAlpha = 0.5;
-            ctx.beginPath(); ctx.ellipse(pt.x, pt.y, pSize, pSize/2, 0, 0, Math.PI*2); ctx.fill();
-            ctx.globalAlpha = 1; ctx.fillStyle = "white"; ctx.textAlign="center";
-            ctx.fillText(pt.label, pt.x, pt.y - 35);
+            ctx.beginPath(); ctx.ellipse(pt.x, pt.y, 30, 15, 0, 0, Math.PI*2); ctx.fill();
+            ctx.globalAlpha = 1; ctx.fillStyle = "white"; ctx.fillText(pt.label, pt.x, pt.y - 30);
         }
     });
 
-    // 3. Storage Chest
+    // Storage Chest (Hub only)
     if (myRoomKey === 'hub') {
-        ctx.fillStyle = '#5d4037'; ctx.fillRect(385, 285, 30, 30);
-        ctx.fillStyle = 'white'; ctx.fillText("CHEST", 400, 280);
+        ctx.fillStyle = '#5d4037'; ctx.fillRect(380, 280, 40, 40);
+        ctx.fillStyle = 'white'; ctx.fillText("CHEST", 400, 275);
     }
 
-    // 4. Resources & Monsters
-    resources.forEach(r => { 
-        if (r.room === myRoomKey && r.hp > 0) { 
-            ctx.fillStyle = (r.type === 'wood' ? '#4caf50' : '#9e9e9e');
-            ctx.fillRect(r.x-10, r.y-10, 20, 20); 
-        } 
-    });
-    monsters.forEach(m => { 
-        if (m.room === myRoomKey && m.isAlive) { 
-            ctx.fillStyle = '#f44336'; ctx.beginPath(); ctx.arc(m.x, m.y, 18, 0, Math.PI*2); ctx.fill(); 
-        } 
+    // Resources
+    resources.forEach(r => {
+        if (r.room === myRoomKey && r.hp > 0) {
+            ctx.fillStyle = (r.type === 'wood' ? '#8b4513' : '#78909c');
+            ctx.fillRect(r.x-10, r.y-10, 20, 20);
+        }
     });
 
-    // 5. Player Drawing (Shapes based on Class)
+    // Monsters
+    monsters.forEach(m => {
+        if (m.room === myRoomKey && m.isAlive) {
+            ctx.fillStyle = '#ef5350'; ctx.beginPath(); ctx.arc(m.x, m.y, 20, 0, Math.PI*2); ctx.fill();
+        }
+    });
+
+    // Players
     for (let id in players) {
         let p = players[id];
         if (p.room === myRoomKey) {
             ctx.fillStyle = p.color;
-            if(p.charClass === 'Warrior') ctx.fillRect(p.x - 15, p.y - 15, 30, 30);
+            // Draw Class Shape
+            if(p.charClass === 'Warrior') ctx.fillRect(p.x-15, p.y-15, 30, 30);
             else if(p.charClass === 'Archer') { ctx.beginPath(); ctx.moveTo(p.x, p.y-18); ctx.lineTo(p.x-18, p.y+15); ctx.lineTo(p.x+18, p.y+15); ctx.fill(); }
-            else { ctx.beginPath(); ctx.arc(p.x, p.y, 15, 0, Math.PI*2); ctx.fill(); } // Mage is Circle
+            else { ctx.beginPath(); ctx.arc(p.x, p.y, 16, 0, Math.PI*2); ctx.fill(); }
             
             ctx.fillStyle = 'white'; ctx.fillText(p.name, p.x, p.y - 25);
             
             if(id === myId) {
-                // Training Zone Text
+                // ZONE HINTS
                 ctx.fillStyle = "yellow";
                 if(p.room === 'gym') ctx.fillText("CLICK TO TRAIN STR!", p.x, p.y + 45);
                 if(p.room === 'track') ctx.fillText("RUN TO TRAIN SPD!", p.x, p.y + 45);
-                if(p.room === 'lake') ctx.fillText("STILLNESS TRAINS DEF!", p.x, p.y + 45);
+                if(p.room === 'lake') ctx.fillText("STAY STILL FOR DEF!", p.x, p.y + 45);
                 
-                // Resources
+                // INVENTORY
                 ctx.textAlign = "left"; ctx.fillStyle = "#fff";
-                ctx.fillText(`🎒 Pack: W:${p.backpack.wood} S:${p.backpack.stone} | 🏦 Bank: W:${p.bank.wood} S:${p.bank.stone}`, 15, 580);
+                ctx.fillText(`🎒 Wood: ${p.backpack.wood + p.bank.wood} | Stone: ${p.backpack.stone + p.bank.stone}`, 10, 580);
                 ctx.textAlign = "center";
             }
         }
