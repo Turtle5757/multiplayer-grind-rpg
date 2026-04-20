@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multiplayer PvP RPG</title>
+    <title>PVP Brawl | Training RPG</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -46,13 +46,21 @@
         </div>
 
         <div class="side-stats">
+            <p style="color: #f1c40f; font-weight: bold;">💰 Gold: <span id="gold-display">0</span></p>
             <p>⚔️ STR: <span id="str">0</span></p>
             <p>🛡️ DEF: <span id="def">0</span></p>
             <p>⚡ SPD: <span id="spd">0</span></p>
+            
+            <div id="shop-menu" style="margin-top: 15px; pointer-events: auto;">
+                <p style="font-size: 10px; color: #aaa;">SHOP (150g each)</p>
+                <button class="shop-btn" onclick="socket.emit('buyGear', 'sword')">⚔️ Upgrade Sword</button>
+                <button class="shop-btn" onclick="socket.emit('buyGear', 'armor')">🛡️ Upgrade Armor</button>
+                <button class="shop-btn" onclick="socket.emit('buyGear', 'boots')">👟 Upgrade Boots</button>
+            </div>
         </div>
 
         <div class="controls-hint">
-            WASD: Move | Click: Attack/Train | C: Craft | Gym/Track/Lake for Stats
+            WASD: Move | Click: Attack/Train | C: Craft | Visit the Blacksmith for Gear
         </div>
     </div>
 
