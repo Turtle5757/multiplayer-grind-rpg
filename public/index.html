@@ -1,17 +1,38 @@
-<div id="login-screen">
-    <div class="login-box">
-        <h1>GRIND RPG</h1>
-        <input type="text" id="username" placeholder="Character Name" maxlength="10">
-        <button onclick="startGame()">ENTER WORLD</button>
-        <p style="font-size: 10px;">Progress saves to this browser.</p>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ultimate Grind RPG</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="login-screen">
+        <div class="modal">
+            <h1>GRIND RPG</h1>
+            <input type="text" id="username" placeholder="Character Name" maxlength="10">
+            <button onclick="startGame()">ENTER WORLD</button>
+        </div>
     </div>
-</div>
 
-<div id="gui" style="display:none;">
-    <div class="stats">
-        LVL <span id="lvl">1</span> | STR <span id="str">10</span> | DEF <span id="def">5</span> | SPD <span id="spd">3</span>
-        <br>GOLD: $<span id="gold">0</span>
+    <div id="gui" style="display:none;">
+        <div class="stats">
+            LVL <span id="lvl">1</span> | STR <span id="str">0</span> | DEF <span id="def">0</span> | SPD <span id="spd">0</span><br>
+            GOLD: $<span id="gold">0</span>
+        </div>
+        <div class="bar-bg"><div id="hp-fill" class="fill hp"></div></div>
+        <div class="bar-bg"><div id="xp-fill" class="fill xp"></div></div>
     </div>
-    <div class="bar-bg"><div id="hp-fill" class="fill hp"></div></div>
-    <div class="bar-bg"><div id="xp-fill" class="fill xp"></div></div>
-</div>
+
+    <div id="shop-ui" style="display:none;">
+        <div class="modal shop">
+            <h2>SHOP</h2>
+            <button onclick="buy('str')">+10 Strength ($50)</button>
+            <button onclick="buy('hp')">+50 Max HP ($100)</button>
+            <button onclick="document.getElementById('shop-ui').style.display='none'">Exit</button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
