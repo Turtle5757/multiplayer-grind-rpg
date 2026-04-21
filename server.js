@@ -21,8 +21,8 @@ function saveDB() { fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2)); }
 let players = {};
 let projectiles = [];
 let monsters = [
-    { id: 101, x: 400, y: 300, hp: 100, maxHp: 100, str: 10, room: 'dungeon', isAlive: true, spd: 1.5 },
-    { id: 102, x: 200, y: 500, hp: 250, maxHp: 250, str: 18, room: 'dungeon', isAlive: true, spd: 1.2 }
+    { id: 101, x: 400, y: 300, spawnX: 400, spawnY: 300, hp: 100, maxHp: 100, str: 10, room: 'dungeon', isAlive: true, spd: 1.8 },
+    { id: 102, x: 200, y: 500, spawnX: 200, spawnY: 500, hp: 250, maxHp: 250, str: 18, room: 'dungeon', isAlive: true, spd: 1.4 }
 ];
 
 const rooms = {
@@ -79,11 +79,8 @@ io.on('connection', (socket) => {
         const isMoving = keys.w || keys.s || keys.a || keys.d;
         if (keys.w) p.y -= p.spd; if (keys.s) p.y += p.spd; 
         if (keys.a) p.x -= p.spd; if (keys.d) p.x += p.spd;
-        
-        // --- TRAINING ---
         if (p.room === 'track' && isMoving) p.spd += 0.0012; 
         if (p.room === 'lake' && !isMoving) p.def += 0.018;
-
         p.x = Math.max(20, Math.min(780, p.x)); p.y = Math.max(20, Math.min(580, p.y));
 
         let now = Date.now();
@@ -98,19 +95,22 @@ io.on('connection', (socket) => {
 
     socket.on('attack', (mouse) => {
         const p = players[socket.id]; if (!p || p.hp <= 0) return;
-        if (p.room === 'gym') { p.str += 0.09; return; }
+        if (p.room === 'gym') { p.str += 0.15; return; } // Buffed gym training slightly
 
         if (p.charClass === 'Warrior') {
             monsters.forEach(m => {
-                if (m.room === p.room && m.isAlive && Math.hypot(p.x - m.x, p.y - m.y) < 85) {
-                    m.hp -= (p.str / 3);
-                    if (m.hp <= 0) { m.isAlive = false; p.gold += 50; setTimeout(() => m.isAlive = true, 5000); }
+                if (m.room === p.room && m.isAlive && Math.hypot(p.x - m.x, p.y - m.y) < 90) {
+                    m.hp -= (p.str / 2.5);
+                    if (m.hp <= 0) { 
+                        m.isAlive = false; p.gold += 50; 
+                        setTimeout(() => { m.hp = m.maxHp; m.isAlive = true; }, 5000); 
+                    }
                 }
             });
             if (rooms[p.room].pvp) {
                 for (let id in players) {
                     let target = players[id];
-                    if (id !== socket.id && target.room === p.room && Math.hypot(p.x - target.x, p.y - target.y) < 75) {
+                    if (id !== socket.id && target.room === p.room && Math.hypot(p.x - target.x, p.y - target.y) < 80) {
                         target.hp -= Math.max(2, p.str - (target.def * 0.4));
                         if (target.hp <= 0) { target.hp = target.maxHp; target.room = 'hub'; target.x = 450; target.y = 350; }
                     }
@@ -118,25 +118,32 @@ io.on('connection', (socket) => {
             }
         } else {
             const angle = Math.atan2(mouse.y - p.y, mouse.x - p.x);
-            const speed = p.charClass === 'Archer' ? 14 : 9;
+            const speed = p.charClass === 'Archer' ? 15 : 10;
             projectiles.push({
                 ownerId: socket.id, x: p.x, y: p.y,
                 vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
                 damage: p.str, room: p.room,
                 color: p.charClass === 'Archer' ? '#f1c40f' : '#9b59b6',
-                size: p.charClass === 'Archer' ? 5 : 12, range: 45
+                size: p.charClass === 'Archer' ? 5 : 12, range: 60
             });
         }
     });
 
     socket.on('buyGear', (type) => {
         const p = players[socket.id];
-        if (!p || p.room !== 'shop' || p.gold < 150) return;
-        p.gold -= 150;
-        if (type === 'sword') p.str += 15;
-        if (type === 'armor') { p.def += 12; p.maxHp += 60; p.hp = p.maxHp; }
-        if (type === 'boots') p.spd += 1.2;
-        saveDB();
+        if (!p || p.room !== 'shop') return;
+        
+        const cost = 150;
+        if (p.gold >= cost) {
+            p.gold -= cost;
+            if (type === 'sword') p.str += 20;
+            if (type === 'armor') { p.def += 15; p.maxHp += 80; p.hp = p.maxHp; }
+            if (type === 'boots') p.spd += 1.5;
+            socket.emit('msg', "Upgrade Successful!");
+            saveDB();
+        } else {
+            socket.emit('msg', "Not enough gold!");
+        }
     });
 
     socket.on('disconnect', () => { 
@@ -145,7 +152,9 @@ io.on('connection', (socket) => {
     });
 });
 
+// --- PHYSICS & AI TICK ---
 setInterval(() => {
+    // Projectiles
     for (let i = projectiles.length - 1; i >= 0; i--) {
         let proj = projectiles[i];
         proj.x += proj.vx; proj.y += proj.vy; proj.range--;
@@ -153,7 +162,11 @@ setInterval(() => {
         monsters.forEach(m => {
             if (m.room === proj.room && m.isAlive && Math.hypot(proj.x - m.x, proj.y - m.y) < 25) {
                 m.hp -= proj.damage; hit = true;
-                if (m.hp <= 0) { m.isAlive = false; if(players[proj.ownerId]) players[proj.ownerId].gold += 50; setTimeout(() => m.isAlive = true, 5000); }
+                if (m.hp <= 0) { 
+                    m.isAlive = false; 
+                    if(players[proj.ownerId]) players[proj.ownerId].gold += 50; 
+                    setTimeout(() => { m.hp = m.maxHp; m.isAlive = true; }, 5000); // FIX: Reset HP on respawn
+                }
             }
         });
         if (!hit && rooms[proj.room].pvp) {
@@ -168,20 +181,30 @@ setInterval(() => {
         if (hit || proj.range <= 0) projectiles.splice(i, 1);
     }
 
+    // Monster AI
     monsters.forEach(m => {
         if (!m.isAlive) return;
-        let target = null; let minDist = 250;
+        let target = null; 
+        let minDist = 500; // FIX: Increased Aggro Range
         for (let id in players) {
             let p = players[id];
             let d = Math.hypot(m.x - p.x, m.y - p.y);
             if (p.room === m.room && d < minDist) { minDist = d; target = p; }
         }
+        
         if (target) {
             let angle = Math.atan2(target.y - m.y, target.x - m.x);
             m.x += Math.cos(angle) * m.spd; m.y += Math.sin(angle) * m.spd;
             if (minDist < 30 && (!m.lastAtk || Date.now() - m.lastAtk > 1000)) {
                 target.hp -= Math.max(1, m.str - (target.def * 0.3)); m.lastAtk = Date.now();
                 if (target.hp <= 0) { target.hp = target.maxHp; target.room = 'hub'; target.x = 450; target.y = 350; }
+            }
+        } else {
+            // Return to spawn point if no one is around
+            let dSpawn = Math.hypot(m.x - m.spawnX, m.y - m.spawnY);
+            if (dSpawn > 10) {
+                let angle = Math.atan2(m.spawnY - m.y, m.spawnX - m.x);
+                m.x += Math.cos(angle) * (m.spd * 0.5); m.y += Math.sin(angle) * (m.spd * 0.5);
             }
         }
     });
