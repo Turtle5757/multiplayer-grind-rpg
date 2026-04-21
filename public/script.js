@@ -5,19 +5,26 @@ const ctx = canvas.getContext('2d');
 let myId, players = {}, monsters = [], projectiles = [], rooms = {}, portals = [], isPlaying = false;
 let selectedClass = 'Warrior';
 let camX = 0, camY = 0; 
-let zoom = 0.7; // Change this to 0.5 to see even more, or 1.0 to see less.
+let zoom = 0.8; 
 const WORLD_SIZE = 2000;
 const keys = { w: false, a: false, s: false, d: false };
 
-// --- FULLSCREEN RESIZE ---
+// --- FULLSCREEN LOGIC ---
 function resize() {
+    // This makes the canvas internal resolution match your actual monitor size
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 }
 window.addEventListener('resize', resize);
-resize();
+resize(); // Call it immediately
 
-// --- UI & CHAT ---
+// --- ZOOM CONTROLLER ---
+window.addEventListener('wheel', (e) => {
+    if (e.deltaY > 0) zoom = Math.max(0.3, zoom - 0.05);
+    else zoom = Math.min(1.5, zoom + 0.05);
+});
+
+// --- UI & INPUTS ---
 const chatInput = document.getElementById('chat-input');
 const chatBox = document.getElementById('chat-box');
 
@@ -34,15 +41,12 @@ function startGame() {
     socket.emit('login', { name, password: pass, charClass: selectedClass });
 }
 
-// --- INPUTS ---
 window.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
         if (document.activeElement === chatInput) {
             if (chatInput.value.trim()) socket.emit('chat', chatInput.value);
             chatInput.value = ""; chatInput.blur();
-        } else {
-            chatInput.focus();
-        }
+        } else { chatInput.focus(); }
         return;
     }
     if (document.activeElement === chatInput) return;
@@ -56,7 +60,6 @@ window.addEventListener('keyup', e => {
 canvas.addEventListener('mousedown', (e) => {
     if (!isPlaying) return;
     const rect = canvas.getBoundingClientRect();
-    // Adjusted for Zoom and Fullscreen
     const mouseX = (e.clientX - rect.left) / zoom + camX;
     const mouseY = (e.clientY - rect.top) / zoom + camY;
     socket.emit('attack', { x: mouseX, y: mouseY });
@@ -107,13 +110,20 @@ function draw() {
 
     const me = players[myId];
 
-    // Camera Math considering zoom
-    camX = me.x - (canvas.width / 2) / zoom;
-    camY = me.y - (canvas.height / 2) / zoom;
+    // 1. Calculate the visible width/height based on zoom
+    const visibleWidth = canvas.width / zoom;
+    const visibleHeight = canvas.height / zoom;
 
-    // Clamp Camera
-    camX = Math.max(0, Math.min(camX, WORLD_SIZE - canvas.width / zoom));
-    camY = Math.max(0, Math.min(camY, WORLD_SIZE - canvas.height / zoom));
+    // 2. Camera follows player
+    camX = me.x - visibleWidth / 2;
+    camY = me.y - visibleHeight / 2;
+
+    // 3. Keep camera in bounds
+    if (visibleWidth >= WORLD_SIZE) camX = (WORLD_SIZE - visibleWidth) / 2;
+    else camX = Math.max(0, Math.min(camX, WORLD_SIZE - visibleWidth));
+
+    if (visibleHeight >= WORLD_SIZE) camY = (WORLD_SIZE - visibleHeight) / 2;
+    else camY = Math.max(0, Math.min(camY, WORLD_SIZE - visibleHeight));
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -121,48 +131,46 @@ function draw() {
     ctx.scale(zoom, zoom); 
     ctx.translate(-camX, -camY);
 
-    // 1. Background
+    // DRAW BACKGROUND
     ctx.fillStyle = rooms[me.room].bg;
     ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-    // Grid
+    // GRID
     ctx.strokeStyle = "rgba(255,255,255,0.05)";
     for(let i=0; i<=WORLD_SIZE; i+=200) {
         ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, WORLD_SIZE); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(WORLD_SIZE, i); ctx.stroke();
     }
 
-    // 2. Portals
+    // DRAW PORTALS
     portals.forEach(pt => {
         if (pt.fromRoom === me.room) {
             ctx.fillStyle = pt.color; ctx.globalAlpha = 0.4;
             ctx.beginPath(); ctx.ellipse(pt.x, pt.y, 60, 25, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.globalAlpha = 1; ctx.fillStyle = "white"; ctx.font = "bold 20px Arial";
+            ctx.globalAlpha = 1; ctx.fillStyle = "white"; ctx.font = "bold 22px Arial";
             ctx.textAlign = "center"; ctx.fillText(pt.label, pt.x, pt.y - 50);
         }
     });
 
-    // 3. Monsters & Boss
+    // DRAW MONSTERS
     monsters.forEach(m => {
         if (m.room === me.room && m.isAlive) {
             if (m.isBoss) {
-                const pulse = 60 + Math.sin(Date.now() / 150) * 12;
+                const pulse = 65 + Math.sin(Date.now() / 150) * 15;
                 ctx.fillStyle = '#8e44ad';
                 ctx.beginPath(); ctx.arc(m.x, m.y, pulse, 0, Math.PI * 2); ctx.fill();
                 ctx.strokeStyle = "white"; ctx.lineWidth = 5; ctx.stroke();
-                ctx.fillStyle = "white"; ctx.font = "bold 24px Arial";
-                ctx.fillText("WORLD BOSS", m.x, m.y - pulse - 40);
             } else {
                 ctx.fillStyle = '#f44336';
                 ctx.beginPath(); ctx.arc(m.x, m.y, 30, 0, Math.PI * 2); ctx.fill();
             }
-            const bw = m.isBoss ? 150 : 60;
-            ctx.fillStyle = "black"; ctx.fillRect(m.x - bw/2, m.y - 75, bw, 10);
-            ctx.fillStyle = "red"; ctx.fillRect(m.x - bw/2, m.y - 75, (m.hp / m.maxHp) * bw, 10);
+            const bw = m.isBoss ? 160 : 60;
+            ctx.fillStyle = "black"; ctx.fillRect(m.x - bw/2, m.y - 80, bw, 12);
+            ctx.fillStyle = "red"; ctx.fillRect(m.x - bw/2, m.y - 80, (m.hp / m.maxHp) * bw, 12);
         }
     });
 
-    // 4. Projectiles
+    // DRAW PROJECTILES
     projectiles.forEach(p => {
         if (p.room === me.room) {
             ctx.fillStyle = p.color;
@@ -170,21 +178,20 @@ function draw() {
         }
     });
 
-    // 5. Players
+    // DRAW PLAYERS
     for (let id in players) {
         let p = players[id];
         if (p.room === me.room) {
             ctx.fillStyle = p.color;
-            if (p.charClass === 'Warrior') ctx.fillRect(p.x-20, p.y-20, 40, 40);
-            else if (p.charClass === 'Archer') { ctx.beginPath(); ctx.moveTo(p.x, p.y-25); ctx.lineTo(p.x-25, p.y+20); ctx.lineTo(p.x+25, p.y+20); ctx.fill(); }
-            else { ctx.beginPath(); ctx.arc(p.x, p.y, 22, 0, Math.PI*2); ctx.fill(); }
+            if (p.charClass === 'Warrior') ctx.fillRect(p.x-22, p.y-22, 44, 44);
+            else if (p.charClass === 'Archer') { ctx.beginPath(); ctx.moveTo(p.x, p.y-28); ctx.lineTo(p.x-28, p.y+22); ctx.lineTo(p.x+28, p.y+22); ctx.fill(); }
+            else { ctx.beginPath(); ctx.arc(p.x, p.y, 24, 0, Math.PI*2); ctx.fill(); }
 
             ctx.fillStyle = 'white'; ctx.font = "bold 18px Arial"; ctx.textAlign = "center";
-            ctx.fillText(p.name, p.x, p.y - 60);
-
-            ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(p.x-30, p.y-52, 60, 8);
+            ctx.fillText(p.name, p.x, p.y - 65);
+            ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(p.x-35, p.y-55, 70, 10);
             ctx.fillStyle = (id === myId) ? "#00ff00" : "#ffcc00";
-            ctx.fillRect(p.x-30, p.y-52, (p.hp/p.maxHp)*60, 8);
+            ctx.fillRect(p.x-35, p.y-55, (p.hp/p.maxHp)*70, 10);
         }
     }
 
