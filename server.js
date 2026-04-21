@@ -9,16 +9,19 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
+// --- PERMANENT STORAGE ---
 let db = { users: {} };
 const DB_PATH = './users.json';
 if (fs.existsSync(DB_PATH)) {
-    try { db = JSON.parse(fs.readFileSync(DB_PATH)); } catch (e) {}
+    try { db = JSON.parse(fs.readFileSync(DB_PATH)); } catch (e) { console.log("DB Load Error"); }
 }
 function saveDB() { fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2)); }
 
 const WORLD_SIZE = 2000;
 let players = {};
 let projectiles = [];
+
+// --- MONSTER & BOSS CONFIG ---
 let monsters = [
     { id: 101, x: 500, y: 500, spawnX: 500, spawnY: 500, hp: 200, maxHp: 200, str: 20, room: 'dungeon', isAlive: true, spd: 2.2 },
     { id: 102, x: 1500, y: 1500, spawnX: 1500, spawnY: 1500, hp: 400, maxHp: 400, str: 35, room: 'dungeon', isAlive: true, spd: 1.8 },
@@ -50,6 +53,7 @@ const portals = [
     { fromRoom: 'shop', toRoom: 'hub', x: 1000, y: 1950, targetX: 1600, targetY: 400, color: '#fff', label: 'Village' }
 ];
 
+// --- BALANCED TIERED GEAR ---
 const GEAR_TIERS = {
     weapon: [
         { name: "Bronze Sword", mult: 1.1, cost: 800 },
@@ -74,10 +78,12 @@ const GEAR_TIERS = {
 io.on('connection', (socket) => {
     socket.on('login', (data) => {
         const username = data.name.toLowerCase();
+        
         if (db.users[username]) {
             if (db.users[username].password !== data.password) return socket.emit('msg', 'Wrong password!');
             players[socket.id] = { ...db.users[username], x: 1000, y: 1000, room: 'hub', lastTeleport: 0 };
         } else {
+            // New Player Initialization
             players[socket.id] = { 
                 name: data.name, password: data.password, charClass: data.charClass,
                 hp: 100, maxHp: 100, str: 10, def: 5, spd: 3, gold: 0, 
@@ -86,11 +92,21 @@ io.on('connection', (socket) => {
                 mults: { str: 1.0, def: 1.0, spd: 1.0 },
                 color: `hsl(${Math.random() * 360}, 70%, 50%)` 
             };
-            // Restore Class Bonuses
-            if (data.charClass === 'Warrior') { players[socket.id].maxHp += 100; players[socket.id].hp = 200; players[socket.id].str += 5; }
-            if (data.charClass === 'Archer') { players[socket.id].spd += 2; }
-            if (data.charClass === 'Mage') { players[socket.id].str += 15; }
-            db.users[username] = players[socket.id]; saveDB();
+
+            // Applying Class Bonuses
+            if (data.charClass === 'Warrior') { 
+                players[socket.id].maxHp += 100; 
+                players[socket.id].hp = 200; 
+                players[socket.id].str += 5; 
+            }
+            if (data.charClass === 'Archer') { 
+                players[socket.id].spd += 2; 
+            }
+            if (data.charClass === 'Mage') { 
+                players[socket.id].str += 15; 
+            }
+            db.users[username] = players[socket.id]; 
+            saveDB();
         }
         socket.emit('init', { id: socket.id, players, monsters, rooms, portals, GEAR_TIERS });
     });
@@ -101,8 +117,11 @@ io.on('connection', (socket) => {
         let s = p.spd;
         if (keys.w) p.y -= s; if (keys.s) p.y += s; 
         if (keys.a) p.x -= s; if (keys.d) p.x += s;
+
+        // Training Multipliers Applied
         if (p.room === 'track' && moving) p.spd += (0.0008 * p.mults.spd); 
         if (p.room === 'lake' && !moving) p.def += (0.015 * p.mults.def);
+        
         p.x = Math.max(30, Math.min(WORLD_SIZE - 30, p.x)); 
         p.y = Math.max(30, Math.min(WORLD_SIZE - 30, p.y));
 
@@ -119,11 +138,12 @@ io.on('connection', (socket) => {
     socket.on('attack', (mouse) => {
         const p = players[socket.id]; if (!p || p.hp <= 0) return;
         if (p.room === 'gym') { p.str += (0.12 * p.mults.str); return; }
+
         const angle = Math.atan2(mouse.y - p.y, mouse.x - p.x);
         projectiles.push({
             ownerId: socket.id, x: p.x, y: p.y,
-            vx: Math.cos(angle) * (p.charClass === 'Archer' ? 17 : 12),
-            vy: Math.sin(angle) * (p.charClass === 'Archer' ? 17 : 12),
+            vx: Math.cos(angle) * (p.charClass === 'Archer' ? 18 : 12),
+            vy: Math.sin(angle) * (p.charClass === 'Archer' ? 18 : 12),
             damage: p.str, room: p.room, range: 75, color: p.color
         });
     });
@@ -132,53 +152,87 @@ io.on('connection', (socket) => {
         const p = players[socket.id];
         const tier = GEAR_TIERS[data.type][data.tier];
         if (!p || p.room !== 'shop' || p.gold < tier.cost) return;
+
         p.gold -= tier.cost;
         p.equips[data.type] = tier.name;
+
         if (data.type === 'weapon') p.mults.str = tier.mult;
         if (data.type === 'boots') p.mults.spd = tier.mult;
-        if (data.type === 'armor') { p.mults.def = tier.mult; p.maxHp = (p.charClass==='Warrior'?200:100) + tier.hp; p.hp = p.maxHp; }
+        if (data.type === 'armor') { 
+            p.mults.def = tier.mult; 
+            const baseHp = (p.charClass === 'Warrior' ? 200 : 100);
+            p.maxHp = baseHp + tier.hp; 
+            p.hp = p.maxHp; 
+        }
+        
+        db.users[p.name.toLowerCase()] = { ...p };
         saveDB();
+        socket.emit('msg', `Blacksmith: Enjoy your ${tier.name}!`);
     });
 
-    socket.on('disconnect', () => { delete players[socket.id]; });
+    socket.on('chat', (msg) => {
+        const p = players[socket.id];
+        if (p) io.emit('msg', `[${p.name}]: ${msg.substring(0, 50)}`);
+    });
+
+    socket.on('disconnect', () => { 
+        if (players[socket.id]) {
+            db.users[players[socket.id].name.toLowerCase()] = { ...players[socket.id] };
+            saveDB();
+        }
+        delete players[socket.id]; 
+    });
 });
 
+// --- GAME LOOP (30 FPS) ---
 setInterval(() => {
-    // Projectiles
+    // 1. Projectiles
     for (let i = projectiles.length - 1; i >= 0; i--) {
         let prj = projectiles[i]; prj.x += prj.vx; prj.y += prj.vy; prj.range--;
         let hit = false;
         monsters.forEach(m => {
             if (m.room === prj.room && m.isAlive && Math.hypot(prj.x - m.x, prj.y - m.y) < 45) {
-                let d = prj.damage; if(m.isBoss) { d *= 0.4; m.lastHit = Date.now(); }
+                let d = prj.damage; 
+                if(m.isBoss) { d *= 0.4; m.lastHit = Date.now(); } // Boss Defense
                 m.hp -= d; hit = true;
                 if (m.hp <= 0) {
                     m.isAlive = false;
-                    if(players[prj.ownerId]) players[prj.ownerId].gold += m.isBoss ? 5000 : 150;
+                    const killer = players[prj.ownerId];
+                    if(killer) killer.gold += m.isBoss ? 5000 : 150;
                     setTimeout(() => { m.hp = m.maxHp; m.isAlive = true; }, m.isBoss ? 60000 : 8000);
                 }
             }
         });
         if (hit || prj.range <= 0) projectiles.splice(i, 1);
     }
-    // Monster AI & Boss Regen
+
+    // 2. Monster AI & Boss Regen
     monsters.forEach(m => {
         if (!m.isAlive) return;
-        if (m.isBoss && Date.now() - m.lastHit > 5000) m.hp = Math.min(m.maxHp, m.hp + 40);
+        if (m.isBoss && Date.now() - m.lastHit > 5000) m.hp = Math.min(m.maxHp, m.hp + 50); // Boss Regen
+
         let target = null, minDist = 600;
         for (let id in players) {
-            let p = players[id]; let d = Math.hypot(m.x - p.x, m.y - p.y);
+            let p = players[id]; 
+            let d = Math.hypot(m.x - p.x, m.y - p.y);
             if (p.room === m.room && d < minDist) { minDist = d; target = p; }
         }
+
         if (target) {
             let ang = Math.atan2(target.y - m.y, target.x - m.x);
             m.x += Math.cos(ang) * m.spd; m.y += Math.sin(ang) * m.spd;
             if (minDist < 50 && (!m.lastAtk || Date.now() - m.lastAtk > 1000)) {
-                target.hp -= Math.max(5, m.str - (target.def * 0.4)); m.lastAtk = Date.now();
-                if (target.hp <= 0) { target.hp = target.maxHp; target.room = 'hub'; target.x = 1000; target.y = 1000; }
+                target.hp -= Math.max(5, m.str - (target.def * 0.4)); 
+                m.lastAtk = Date.now();
+                if (target.hp <= 0) { 
+                    target.hp = target.maxHp; 
+                    target.room = 'hub'; 
+                    target.x = 1000; target.y = 1000; 
+                }
             }
         }
     });
     io.emit('update', { players, monsters, projectiles });
 }, 30);
-server.listen(3000);
+
+server.listen(process.env.PORT || 3000, () => console.log("Server Running"));
