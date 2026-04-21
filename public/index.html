@@ -1,56 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brawl Online: Boss Raid</title>
+    <title>RPG MMO</title>
     <link rel="stylesheet" href="style.css">
-    <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
     <div id="login-screen">
         <div class="login-box">
-            <h1 style="color: #ff4d4d;">BRAWL ONLINE</h1>
-            <input type="text" id="username" placeholder="Character Name">
+            <h1>RPG MMO</h1>
+            <input type="text" id="username" placeholder="Username">
             <input type="password" id="password" placeholder="Password">
-            <div class="class-selector">
-                <button id="Warrior" class="class-btn active" onclick="setClass('Warrior')">WARRIOR</button>
-                <button id="Archer" class="class-btn" onclick="setClass('Archer')">ARCHER</button>
-                <button id="Mage" class="class-btn" onclick="setClass('Mage')">MAGE</button>
-            </div>
             <button class="start-btn" onclick="startGame()">ENTER WORLD</button>
-        </div>
-    </div>
-
-    <div id="gui" style="display:none;">
-        <div class="top-bar">
-            <div class="stat-group">
-                <div class="bar-bg"><div id="hp-fill" class="bar-fill hp"></div></div>
-            </div>
-            <div class="stat-group">LVL <span id="lvl">1</span> | <span id="p-class">WARRIOR</span></div>
-            <button class="fs-btn" onclick="toggleFullscreen()">FULLSCREEN</button>
-        </div>
-
-        <div class="side-stats">
-            <p style="color: gold; font-weight: bold;">💰 Gold: <span id="gold-display">0</span></p>
-            <p>STR: <span id="str">0</span> | DEF: <span id="def">0</span> | SPD: <span id="spd">0</span></p>
-            
-            <div id="shop-menu" style="display:none;">
-                <h4 style="margin: 10px 0 5px 0; color: #f1c40f;">BLACKSMITH</h4>
-                <button onclick="socket.emit('buyGear', 'sword')">⚔️ Upgrade Sword (150g)</button>
-                <button onclick="socket.emit('buyGear', 'armor')">🛡️ Upgrade Armor (150g)</button>
-                <button onclick="socket.emit('buyGear', 'boots')">👟 Upgrade Boots (150g)</button>
-            </div>
-        </div>
-
-        <div id="chat-container">
-            <div id="chat-box"></div>
-            <input type="text" id="chat-input" placeholder="Press Enter to chat..." maxlength="80">
         </div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
+    <div id="gui" style="display:none;">
+        <div class="side-stats">
+            <div class="bar-bg"><div id="hp-fill" class="bar-fill"></div></div>
+            <p>STR: <span id="str-val">10</span></p>
+            <p>DEF: <span id="def-val">5</span></p>
+            <p>SPD: <span id="spd-val">3</span></p>
+            <p>GOLD: <span id="gold-display">0</span></p>
+            
+            <div class="equip-list">
+                <div id="equip-weapon">Wep: None</div>
+                <div id="equip-armor">Arm: None</div>
+                <div id="equip-boots">Bts: None</div>
+            </div>
+        </div>
+
+        <div id="shop-menu" style="display:none;"></div>
+
+        <div id="chat-container">
+            <div id="chat-box"></div>
+            <input type="text" id="chat-input" placeholder="Press Enter to chat...">
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
