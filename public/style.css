@@ -1,14 +1,79 @@
-body, html { margin: 0; padding: 0; overflow: hidden; background: #000; font-family: sans-serif; color: white; }
-#gameCanvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
-#login-screen { position: fixed; z-index: 100; width: 100%; height: 100%; background: #111; display: flex; justify-content: center; align-items: center; }
-.login-box { background: #222; padding: 40px; border-radius: 10px; border: 2px solid #ff4d4d; text-align: center; }
-#gui { position: fixed; z-index: 50; width: 100%; height: 100%; pointer-events: none; }
-.side-stats { position: absolute; left: 20px; top: 20px; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; pointer-events: auto; }
-.bar-bg { width: 200px; height: 20px; background: #333; margin-top: 10px; border-radius: 10px; overflow: hidden; }
-.bar-fill { height: 100%; background: #ff4d4d; transition: 0.3s; }
-#shop-menu { position: absolute; right: 20px; top: 20px; background: rgba(0,0,0,0.9); padding: 20px; border-radius: 10px; pointer-events: auto; width: 250px; }
-#shop-menu button { display: block; width: 100%; margin: 5px 0; padding: 8px; background: #f1c40f; border: none; cursor: pointer; font-weight: bold; }
-#chat-container { position: absolute; bottom: 20px; left: 20px; width: 300px; pointer-events: auto; }
-#chat-box { height: 120px; background: rgba(0,0,0,0.6); overflow-y: auto; padding: 10px; font-size: 12px; }
-#chat-input { width: 100%; padding: 10px; background: #222; color: white; border: 1px solid #444; }
-.equip-list { margin-top: 15px; font-size: 0.8em; color: #00ffcc; border-top: 1px solid #444; padding-top: 10px; }
+/* --- CRITICAL SCREEN RESET --- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: #000;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+#gameCanvas {
+    position: fixed; /* Locks the game to the top-left of the browser */
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: block;
+    z-index: 1;
+}
+
+/* --- UI OVERLAYS --- */
+#gui {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 50;
+    pointer-events: none;
+    color: white;
+}
+
+#login-screen {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.login-box {
+    background: #222;
+    padding: 30px;
+    border-radius: 15px;
+    border: 2px solid #ff4d4d;
+    text-align: center;
+    pointer-events: auto;
+}
+
+/* Class Buttons */
+.class-selector { display: flex; gap: 10px; margin: 15px 0; }
+.class-btn {
+    flex: 1; padding: 10px; background: #444; border: none;
+    color: white; cursor: pointer; border-radius: 5px;
+}
+.class-btn.active { background: #ff4d4d; font-weight: bold; }
+
+.side-stats {
+    position: absolute; left: 20px; top: 20px;
+    background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px;
+    pointer-events: auto; min-width: 200px;
+}
+
+#shop-menu {
+    position: absolute; right: 20px; top: 20px;
+    background: rgba(0,0,0,0.9); padding: 20px; border-radius: 10px;
+    pointer-events: auto; width: 280px; max-height: 80vh; overflow-y: auto;
+}
+
+#shop-menu button {
+    width: 100%; margin: 5px 0; padding: 10px;
+    background: #f1c40f; border: none; cursor: pointer; font-weight: bold;
+}
