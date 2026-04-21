@@ -3,69 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PVP Brawl | Training RPG</title>
+    <title>PVP RPG Online</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-
     <div id="login-screen">
         <div class="login-box">
-            <h1 style="color: #ff4d4d;">PVP BRAWL ONLINE</h1>
-            <input type="text" id="username" placeholder="Character Name" maxlength="12">
+            <h1 style="color: #ff4d4d;">BRAWL ONLINE</h1>
+            <input type="text" id="username" placeholder="Name">
             <input type="password" id="password" placeholder="Password">
-            
-            <p>Select Your Fighting Style:</p>
             <div class="class-selector">
-                <button id="Warrior" class="class-btn active" onclick="setClass('Warrior')">
-                    <b>WARRIOR</b><br><small>Tanky / Melee</small>
-                </button>
-                <button id="Archer" class="class-btn" onclick="setClass('Archer')">
-                    <b>ARCHER</b><br><small>Fast / Range</small>
-                </button>
-                <button id="Mage" class="class-btn" onclick="setClass('Mage')">
-                    <b>MAGE</b><br><small>Glass Cannon</small>
-                </button>
+                <button id="Warrior" class="class-btn active" onclick="setClass('Warrior')">WARRIOR</button>
+                <button id="Archer" class="class-btn" onclick="setClass('Archer')">ARCHER</button>
+                <button id="Mage" class="class-btn" onclick="setClass('Mage')">MAGE</button>
             </div>
-
-            <button class="start-btn" onclick="startGame()">SPAWN & FIGHT</button>
+            <button class="start-btn" onclick="startGame()">ENTER WORLD</button>
         </div>
     </div>
 
     <div id="gui" style="display:none;">
         <div class="top-bar">
-            <div class="stat-group">
-                <span class="label">HP</span>
-                <div class="bar-bg"><div id="hp-fill" class="bar-fill hp"></div></div>
-            </div>
-            <div class="stat-group">
-                <span class="label">LVL <span id="lvl">1</span></span>
-                <span id="p-class" class="class-tag">WARRIOR</span>
-            </div>
-            <button class="fs-btn" onclick="toggleFullscreen()">📺 FULLSCREEN</button>
+            <div class="stat-group"><div class="bar-bg"><div id="hp-fill" class="bar-fill hp"></div></div></div>
+            <div class="stat-group">LVL <span id="lvl">1</span> | <span id="p-class">WARRIOR</span></div>
+            <button class="fs-btn" onclick="toggleFullscreen()">FULLSCREEN</button>
         </div>
-
         <div class="side-stats">
-            <p style="color: #f1c40f; font-weight: bold;">💰 Gold: <span id="gold-display">0</span></p>
-            <p>⚔️ STR: <span id="str">0</span></p>
-            <p>🛡️ DEF: <span id="def">0</span></p>
-            <p>⚡ SPD: <span id="spd">0</span></p>
-            
-            <div id="shop-menu" style="margin-top: 15px; pointer-events: auto;">
-                <p style="font-size: 10px; color: #aaa;">SHOP (150g each)</p>
-                <button class="shop-btn" onclick="socket.emit('buyGear', 'sword')">⚔️ Upgrade Sword</button>
-                <button class="shop-btn" onclick="socket.emit('buyGear', 'armor')">🛡️ Upgrade Armor</button>
-                <button class="shop-btn" onclick="socket.emit('buyGear', 'boots')">👟 Upgrade Boots</button>
+            <p style="color: gold;">Gold: <span id="gold-display">0</span></p>
+            <p>STR: <span id="str">0</span> | DEF: <span id="def">0</span> | SPD: <span id="spd">0</span></p>
+            <div id="shop-menu" style="display:none;">
+                <button onclick="socket.emit('buyGear', 'sword')">⚔️ Sword (150g)</button>
+                <button onclick="socket.emit('buyGear', 'armor')">🛡️ Armor (150g)</button>
+                <button onclick="socket.emit('buyGear', 'boots')">👟 Boots (150g)</button>
             </div>
-        </div>
-
-        <div class="controls-hint">
-            WASD: Move | Click: Attack/Train | C: Craft | Visit the Blacksmith for Gear
         </div>
     </div>
-
     <canvas id="gameCanvas"></canvas>
-
     <script src="script.js"></script>
 </body>
 </html>
