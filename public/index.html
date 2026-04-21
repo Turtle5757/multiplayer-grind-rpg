@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PVP RPG Online</title>
+    <title>Brawl Online: Boss Raid</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -11,7 +11,7 @@
     <div id="login-screen">
         <div class="login-box">
             <h1 style="color: #ff4d4d;">BRAWL ONLINE</h1>
-            <input type="text" id="username" placeholder="Name">
+            <input type="text" id="username" placeholder="Character Name">
             <input type="password" id="password" placeholder="Password">
             <div class="class-selector">
                 <button id="Warrior" class="class-btn active" onclick="setClass('Warrior')">WARRIOR</button>
@@ -24,21 +24,33 @@
 
     <div id="gui" style="display:none;">
         <div class="top-bar">
-            <div class="stat-group"><div class="bar-bg"><div id="hp-fill" class="bar-fill hp"></div></div></div>
+            <div class="stat-group">
+                <div class="bar-bg"><div id="hp-fill" class="bar-fill hp"></div></div>
+            </div>
             <div class="stat-group">LVL <span id="lvl">1</span> | <span id="p-class">WARRIOR</span></div>
             <button class="fs-btn" onclick="toggleFullscreen()">FULLSCREEN</button>
         </div>
+
         <div class="side-stats">
-            <p style="color: gold;">Gold: <span id="gold-display">0</span></p>
+            <p style="color: gold; font-weight: bold;">💰 Gold: <span id="gold-display">0</span></p>
             <p>STR: <span id="str">0</span> | DEF: <span id="def">0</span> | SPD: <span id="spd">0</span></p>
+            
             <div id="shop-menu" style="display:none;">
-                <button onclick="socket.emit('buyGear', 'sword')">⚔️ Sword (150g)</button>
-                <button onclick="socket.emit('buyGear', 'armor')">🛡️ Armor (150g)</button>
-                <button onclick="socket.emit('buyGear', 'boots')">👟 Boots (150g)</button>
+                <h4 style="margin: 10px 0 5px 0; color: #f1c40f;">BLACKSMITH</h4>
+                <button onclick="socket.emit('buyGear', 'sword')">⚔️ Upgrade Sword (150g)</button>
+                <button onclick="socket.emit('buyGear', 'armor')">🛡️ Upgrade Armor (150g)</button>
+                <button onclick="socket.emit('buyGear', 'boots')">👟 Upgrade Boots (150g)</button>
             </div>
         </div>
+
+        <div id="chat-container">
+            <div id="chat-box"></div>
+            <input type="text" id="chat-input" placeholder="Press Enter to chat..." maxlength="80">
+        </div>
     </div>
+
     <canvas id="gameCanvas"></canvas>
+
     <script src="script.js"></script>
 </body>
 </html>
