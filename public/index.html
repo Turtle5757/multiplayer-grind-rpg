@@ -1,23 +1,26 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>RPG MMO</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer RPG</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="login-screen">
         <div class="login-box">
-            <h1>CHOOSE YOUR CLASS</h1>
-            <input type="text" id="username" placeholder="Username">
+            <h1>REALM GRIND</h1>
+            <input type="text" id="username" placeholder="Username" maxlength="12">
             <input type="password" id="password" placeholder="Password">
             
+            <p style="margin-top: 15px; color: #aaa;">Select Your Class:</p>
             <div class="class-selector">
-                <button class="class-btn active" onclick="setClass('Warrior')">Warrior</button>
-                <button class="class-btn" onclick="setClass('Archer')">Archer</button>
-                <button class="class-btn" onclick="setClass('Mage')">Mage</button>
+                <button class="class-btn active" onclick="setClass('Warrior')">WARRIOR</button>
+                <button class="class-btn" onclick="setClass('Archer')">ARCHER</button>
+                <button class="class-btn" onclick="setClass('Mage')">MAGE</button>
             </div>
 
-            <button class="start-btn" onclick="startGame()" style="width:100%; padding:10px; background:green; color:white; border:none; cursor:pointer;">START GRINDING</button>
+            <button class="start-btn" onclick="startGame()">ENTER WORLD</button>
         </div>
     </div>
 
@@ -25,12 +28,21 @@
 
     <div id="gui" style="display:none;">
         <div class="side-stats">
-            <div class="bar-bg"><div id="hp-fill" class="bar-fill"></div></div>
-            <p>STR: <span id="str-val">10</span></p>
-            <p>GOLD: <span id="gold-display">0</span></p>
-            <p id="equip-weapon">Wep: None</p>
+            <div class="bar-bg">
+                <div id="hp-fill" class="bar-fill"></div>
+            </div>
+            <div class="stat-row">STR: <span id="str-val">10</span></div>
+            <div class="stat-row">GOLD: <span id="gold-display">0</span></div>
+            <div class="stat-row" id="equip-weapon" style="color: #00ffcc; font-size: 0.9em; margin-top: 10px;">Wep: None</div>
         </div>
-        <div id="shop-menu" style="display:none;"></div>
+
+        <div id="shop-menu" style="display:none;">
+            </div>
+
+        <div id="chat-container">
+            <div id="chat-box"></div>
+            <input type="text" id="chat-input" placeholder="Press Enter to chat...">
+        </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
