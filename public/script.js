@@ -3,12 +3,12 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 let myId, players = {}, monsters = [], projectiles = [], rooms = {}, portals = [], isPlaying = false;
-let selectedClass = 'Warrior'; // Default class
+let selectedClass = 'Warrior'; // Default
 let camX = 0, camY = 0, zoom = 0.8;
 const WORLD_SIZE = 2000;
 const keys = { w: false, a: false, s: false, d: false };
 
-// --- SCREEN ADJUSTMENT ---
+// --- INITIAL SETUP ---
 function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -16,25 +16,24 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// --- CLASS SELECTION LOGIC ---
+// --- LOGIN & CLASS LOGIC ---
 function setClass(className) {
     selectedClass = className;
-    // Visual feedback for buttons
     document.querySelectorAll('.class-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    // Ensure the clicked button gets the active style
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
 }
 
 function startGame() {
     const name = document.getElementById('username').value;
     const pass = document.getElementById('password').value;
-    if (!name || !pass) {
-        alert("Please enter a username and password.");
-        return;
-    }
-    socket.emit('login', { name: name, password: pass, charClass: selectedClass });
+    if (!name || !pass) return alert("Enter both username and password!");
+    socket.emit('login', { name, password: pass, charClass: selectedClass });
 }
 
-// --- INPUT HANDLING ---
+// --- INPUTS ---
 window.addEventListener('wheel', e => {
     if (e.deltaY > 0) zoom = Math.max(0.3, zoom - 0.05);
     else zoom = Math.min(1.5, zoom + 0.05);
@@ -43,7 +42,6 @@ window.addEventListener('wheel', e => {
 canvas.addEventListener('mousedown', e => {
     if (!isPlaying) return;
     const rect = canvas.getBoundingClientRect();
-    // Translate screen click to world coordinates for the server
     const mouseX = (e.clientX - rect.left) / zoom + camX;
     const mouseY = (e.clientY - rect.top) / zoom + camY;
     socket.emit('attack', { x: mouseX, y: mouseY });
@@ -64,7 +62,7 @@ window.addEventListener('keyup', e => {
     if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false;
 });
 
-// --- SERVER COMMUNICATION ---
+// --- SERVER SYNC ---
 socket.on('init', data => {
     myId = data.id;
     rooms = data.rooms;
@@ -73,17 +71,13 @@ socket.on('init', data => {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('gui').style.display = 'block';
     
-    // BUILD THE SHOP UI DYNAMICALLY
+    // BUILD SHOP UI
     let shopHTML = "<h2>Blacksmith</h2>";
     for (let type in data.GEAR_TIERS) {
-        shopHTML += `<div class='shop-section'><b>${type.toUpperCase()}</b>`;
+        shopHTML += `<div style="margin-top:10px;"><b>${type.toUpperCase()}</b></div>`;
         data.GEAR_TIERS[type].forEach((item, index) => {
-            shopHTML += `
-                <button onclick="socket.emit('buyGear', {type:'${type}', tier:${index}})">
-                    ${item.name} (${item.cost}g)
-                </button>`;
+            shopHTML += `<button onclick="socket.emit('buyGear', {type:'${type}', tier:${index}})">${item.name} (${item.cost}g)</button>`;
         });
-        shopHTML += `</div>`;
     }
     document.getElementById('shop-menu').innerHTML = shopHTML;
     
@@ -98,16 +92,20 @@ socket.on('update', data => {
     
     const me = players[myId];
     if (me) {
-        // Update Stats UI
+        // UI STATS UPDATES (Matches the new HTML IDs)
         document.getElementById('hp-fill').style.width = (me.hp / me.maxHp * 100) + "%";
         document.getElementById('str-val').innerText = `${Math.floor(me.str)} (x${me.mults.str})`;
+        document.getElementById('def-val').innerText = `${Math.floor(me.def)} (x${me.mults.def})`;
+        document.getElementById('spd-val').innerText = `${me.spd.toFixed(1)} (x${me.mults.spd})`;
         document.getElementById('gold-display').innerText = me.gold;
         
-        // Show/Hide Shop based on room
-        document.getElementById('shop-menu').style.display = (me.room === 'shop') ? 'block' : 'none';
-        
-        // Update Equipment Text
+        // EQUIPMENT LABELS
         document.getElementById('equip-weapon').innerText = "Wep: " + me.equips.weapon;
+        document.getElementById('equip-armor').innerText = "Arm: " + me.equips.armor;
+        document.getElementById('equip-boots').innerText = "Bts: " + me.equips.boots;
+        
+        // SHOP TOGGLE
+        document.getElementById('shop-menu').style.display = (me.room === 'shop') ? 'block' : 'none';
     }
 });
 
@@ -119,12 +117,10 @@ socket.on('msg', msg => {
     box.scrollTop = box.scrollHeight;
 });
 
-// Movement Loop
-setInterval(() => {
-    if (isPlaying) socket.emit('move', keys);
-}, 30);
+// Movement Tick
+setInterval(() => { if (isPlaying) socket.emit('move', keys); }, 30);
 
-// --- DRAWING LOOP ---
+// --- RENDER ENGINE ---
 function draw() {
     if (!isPlaying || !players[myId]) {
         requestAnimationFrame(draw);
@@ -132,13 +128,13 @@ function draw() {
     }
     const me = players[myId];
 
-    // CALCULATE CAMERA (Centers player on screen)
+    // CENTERING LOGIC
     const vw = canvas.width / zoom;
     const vh = canvas.height / zoom;
     camX = me.x - vw / 2;
     camY = me.y - vh / 2;
 
-    // Constrain Camera to World Bounds
+    // Boundary Clamp
     camX = Math.max(0, Math.min(camX, WORLD_SIZE - vw));
     camY = Math.max(0, Math.min(camY, WORLD_SIZE - vh));
 
@@ -147,67 +143,63 @@ function draw() {
     ctx.scale(zoom, zoom);
     ctx.translate(-camX, -camY);
 
-    // 1. Draw Environment
-    ctx.fillStyle = rooms[me.room].bg || "#111";
+    // 1. BACKGROUND
+    ctx.fillStyle = (rooms[me.room] && rooms[me.room].bg) ? rooms[me.room].bg : "#111";
     ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-    // 2. Draw Portals
+    // 2. PORTALS
     portals.forEach(pt => {
         if (pt.fromRoom === me.room) {
             ctx.fillStyle = pt.color; ctx.globalAlpha = 0.4;
             ctx.beginPath(); ctx.arc(pt.x, pt.y, 60, 0, Math.PI * 2); ctx.fill();
-            ctx.globalAlpha = 1; ctx.fillStyle = "white";
-            ctx.textAlign = "center";
-            ctx.fillText(pt.label, pt.x, pt.y - 70);
+            ctx.globalAlpha = 1; ctx.fillStyle = "white"; ctx.textAlign = "center";
+            ctx.fillText(pt.label, pt.x, pt.y - 75);
         }
     });
 
-    // 3. Draw Monsters
+    // 3. MONSTERS & BOSS
     monsters.forEach(m => {
         if (m.room === me.room && m.isAlive) {
-            ctx.fillStyle = m.isBoss ? "#8e44ad" : "#f44336";
-            ctx.beginPath(); ctx.arc(m.x, m.y, m.isBoss ? 80 : 30, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = m.isBoss ? "#8e44ad" : "#e74c3c";
+            ctx.beginPath(); ctx.arc(m.x, m.y, m.isBoss ? 85 : 30, 0, Math.PI * 2); ctx.fill();
             
-            // Monster Health Bar
-            ctx.fillStyle = "black"; ctx.fillRect(m.x - 40, m.y - 95, 80, 8);
-            ctx.fillStyle = "#2ecc71"; ctx.fillRect(m.x - 40, m.y - 95, (m.hp / m.maxHp) * 80, 8);
+            // HP Bar
+            ctx.fillStyle = "black"; ctx.fillRect(m.x - 40, m.y - 100, 80, 10);
+            ctx.fillStyle = "#2ecc71"; ctx.fillRect(m.x - 40, m.y - 100, (m.hp / m.maxHp) * 80, 10);
+            if(m.isBoss) {
+                ctx.fillStyle = "white"; ctx.fillText("BOSS", m.x, m.y - 110);
+            }
         }
     });
 
-    // 4. Draw Projectiles
+    // 4. PROJECTILES
     projectiles.forEach(p => {
         if (p.room === me.room) {
-            ctx.fillStyle = p.color || "white";
+            ctx.fillStyle = p.color || "yellow";
             ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2); ctx.fill();
         }
     });
 
-    // 5. Draw Players
+    // 5. PLAYERS
     for (let id in players) {
         let p = players[id];
         if (p.room === me.room) {
             ctx.fillStyle = p.color;
-            
-            // Different shapes for different classes
+            // Class-based Shapes
             if (p.charClass === 'Warrior') {
                 ctx.fillRect(p.x - 25, p.y - 25, 50, 50);
             } else if (p.charClass === 'Archer') {
-                ctx.beginPath();
-                ctx.moveTo(p.x, p.y - 30);
-                ctx.lineTo(p.x - 30, p.y + 25);
-                ctx.lineTo(p.x + 30, p.y + 25);
-                ctx.fill();
+                ctx.beginPath(); ctx.moveTo(p.x, p.y - 35); ctx.lineTo(p.x - 30, p.y + 25); ctx.lineTo(p.x + 30, p.y + 25); ctx.fill();
             } else { // Mage
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, 25, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.beginPath(); ctx.arc(p.x, p.y, 28, 0, Math.PI * 2); ctx.fill();
             }
 
-            // Name Tag
-            ctx.fillStyle = "white";
-            ctx.textAlign = "center";
+            // Name & Info
+            ctx.fillStyle = "white"; ctx.textAlign = "center";
             ctx.font = "bold 16px Arial";
-            ctx.fillText(p.name, p.x, p.y - 65);
+            ctx.fillText(p.name, p.x, p.y - 70);
+            ctx.font = "12px Arial";
+            ctx.fillText(`Lvl ${Math.floor(p.str/2)} ${p.charClass}`, p.x, p.y - 50);
         }
     }
 
