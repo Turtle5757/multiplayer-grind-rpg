@@ -22,18 +22,17 @@ let projectiles = [];
 let monsters = [
     { id: 101, x: 500, y: 500, spawnX: 500, spawnY: 500, hp: 200, maxHp: 200, str: 20, room: 'dungeon', isAlive: true, spd: 2.2 },
     { id: 102, x: 1500, y: 1500, spawnX: 1500, spawnY: 1500, hp: 400, maxHp: 400, str: 35, room: 'dungeon', isAlive: true, spd: 1.8 },
-    { id: 999, x: 1000, y: 1000, spawnX: 1000, spawnY: 1000, hp: 8000, maxHp: 8000, str: 80, room: 'lair', isAlive: true, spd: 1.3, isBoss: true, lastHit: 0 }
+    { id: 999, x: 1000, y: 1000, spawnX: 1000, spawnY: 1000, hp: 12000, maxHp: 12000, str: 95, room: 'lair', isAlive: true, spd: 1.2, isBoss: true, lastHit: 0 }
 ];
 
 const rooms = {
-    hub: { name: "Village", bg: "#15220d", pvp: false },
-    gym: { name: "Gym", bg: "#222", pvp: false },
-    track: { name: "Track", bg: "#3d2b1f", pvp: false },
-    lake: { name: "Lake", bg: "#001f3f", pvp: false },
-    dungeon: { name: "Dungeon", bg: "#1a0000", pvp: false },
-    arena: { name: "Arena", bg: "#4a0000", pvp: true },
-    shop: { name: "Shop", bg: "#2c3e50", pvp: false },
-    lair: { name: "Boss Lair", bg: "#2a0033", pvp: false }
+    hub: { name: "Village", bg: "#15220d" },
+    gym: { name: "Gym", bg: "#222" },
+    track: { name: "Track", bg: "#3d2b1f" },
+    lake: { name: "Lake", bg: "#001f3f" },
+    dungeon: { name: "Dungeon", bg: "#1a0000" },
+    shop: { name: "Shop", bg: "#2c3e50" },
+    lair: { name: "Boss Lair", bg: "#2a0033" }
 };
 
 const portals = [
@@ -48,29 +47,27 @@ const portals = [
     { fromRoom: 'track', toRoom: 'hub', x: 1000, y: 1950, targetX: 1000, targetY: 300, color: '#fff', label: 'Village' },
     { fromRoom: 'gym', toRoom: 'hub', x: 1000, y: 50, targetX: 1000, targetY: 1700, color: '#fff', label: 'Village' },
     { fromRoom: 'lake', toRoom: 'hub', x: 1950, y: 1000, targetX: 300, targetY: 1000, color: '#fff', label: 'Village' },
-    { fromRoom: 'shop', toRoom: 'hub', x: 1000, y: 1950, targetX: 1600, targetY: 400, color: '#fff', label: 'Village' },
-    { fromRoom: 'gym', toRoom: 'arena', x: 1800, y: 1000, targetX: 200, targetY: 1000, color: '#ff3333', label: 'PVP ARENA' },
-    { fromRoom: 'arena', toRoom: 'gym', x: 100, y: 1000, targetX: 1600, targetY: 1000, color: '#fff', label: 'Gym' }
+    { fromRoom: 'shop', toRoom: 'hub', x: 1000, y: 1950, targetX: 1600, targetY: 400, color: '#fff', label: 'Village' }
 ];
 
 const GEAR_TIERS = {
     weapon: [
-        { name: "Bronze Sword", mult: 1.1, cost: 500 },
-        { name: "Iron Sword", mult: 1.25, cost: 1500 },
-        { name: "Steel Greatsword", mult: 1.4, cost: 4000 },
-        { name: "Diamond Blade", mult: 1.6, cost: 10000 }
+        { name: "Bronze Sword", mult: 1.1, cost: 800 },
+        { name: "Iron Sword", mult: 1.2, cost: 2500 },
+        { name: "Steel Greatsword", mult: 1.35, cost: 6000 },
+        { name: "Diamond Blade", mult: 1.5, cost: 15000 }
     ],
     armor: [
-        { name: "Bronze Armor", mult: 1.1, hp: 50, cost: 500 },
-        { name: "Iron Plate", mult: 1.25, hp: 150, cost: 1500 },
-        { name: "Steel Guard", mult: 1.4, hp: 300, cost: 4000 },
-        { name: "Diamond Plate", mult: 1.6, hp: 600, cost: 10000 }
+        { name: "Bronze Armor", mult: 1.1, hp: 50, cost: 800 },
+        { name: "Iron Plate", mult: 1.2, hp: 150, cost: 2500 },
+        { name: "Steel Guard", mult: 1.35, hp: 400, cost: 6000 },
+        { name: "Diamond Plate", mult: 1.5, hp: 1000, cost: 15000 }
     ],
     boots: [
-        { name: "Bronze Boots", mult: 1.1, cost: 500 },
-        { name: "Iron Boots", mult: 1.2, cost: 1500 },
-        { name: "Steel Treads", mult: 1.35, cost: 4000 },
-        { name: "Diamond Greaves", mult: 1.5, cost: 10000 }
+        { name: "Bronze Boots", mult: 1.1, cost: 800 },
+        { name: "Iron Boots", mult: 1.2, cost: 2500 },
+        { name: "Steel Treads", mult: 1.3, cost: 6000 },
+        { name: "Diamond Greaves", mult: 1.45, cost: 15000 }
     ]
 };
 
@@ -86,17 +83,16 @@ io.on('connection', (socket) => {
                 hp: 100, maxHp: 100, str: 10, def: 5, spd: 3, gold: 0, 
                 room: 'hub', x: 1000, y: 1000, lastTeleport: 0,
                 equips: { weapon: "None", armor: "None", boots: "None" },
-                mults: { str: 1.0, def: 1.0, spd: 1.0, hp: 0 },
+                mults: { str: 1.0, def: 1.0, spd: 1.0 },
                 color: `hsl(${Math.random() * 360}, 70%, 50%)` 
             };
+            // Restore Class Bonuses
+            if (data.charClass === 'Warrior') { players[socket.id].maxHp += 100; players[socket.id].hp = 200; players[socket.id].str += 5; }
+            if (data.charClass === 'Archer') { players[socket.id].spd += 2; }
+            if (data.charClass === 'Mage') { players[socket.id].str += 15; }
             db.users[username] = players[socket.id]; saveDB();
         }
         socket.emit('init', { id: socket.id, players, monsters, rooms, portals, GEAR_TIERS });
-    });
-
-    socket.on('chat', (msg) => {
-        const p = players[socket.id];
-        if (p) io.emit('msg', `[${p.name}]: ${msg.substring(0, 60)}`);
     });
 
     socket.on('move', (keys) => {
@@ -105,10 +101,8 @@ io.on('connection', (socket) => {
         let s = p.spd;
         if (keys.w) p.y -= s; if (keys.s) p.y += s; 
         if (keys.a) p.x -= s; if (keys.d) p.x += s;
-        
-        if (p.room === 'track' && moving) p.spd += (0.001 * p.mults.spd); 
-        if (p.room === 'lake' && !moving) p.def += (0.02 * p.mults.def);
-        
+        if (p.room === 'track' && moving) p.spd += (0.0008 * p.mults.spd); 
+        if (p.room === 'lake' && !moving) p.def += (0.015 * p.mults.def);
         p.x = Math.max(30, Math.min(WORLD_SIZE - 30, p.x)); 
         p.y = Math.max(30, Math.min(WORLD_SIZE - 30, p.y));
 
@@ -124,100 +118,67 @@ io.on('connection', (socket) => {
 
     socket.on('attack', (mouse) => {
         const p = players[socket.id]; if (!p || p.hp <= 0) return;
-        if (p.room === 'gym') { p.str += (0.15 * p.mults.str); return; }
-
+        if (p.room === 'gym') { p.str += (0.12 * p.mults.str); return; }
         const angle = Math.atan2(mouse.y - p.y, mouse.x - p.x);
         projectiles.push({
             ownerId: socket.id, x: p.x, y: p.y,
-            vx: Math.cos(angle) * (p.charClass === 'Archer' ? 15 : 10),
-            vy: Math.sin(angle) * (p.charClass === 'Archer' ? 15 : 10),
-            damage: p.str, room: p.room, range: 60,
-            color: p.color
+            vx: Math.cos(angle) * (p.charClass === 'Archer' ? 17 : 12),
+            vy: Math.sin(angle) * (p.charClass === 'Archer' ? 17 : 12),
+            damage: p.str, room: p.room, range: 75, color: p.color
         });
     });
 
     socket.on('buyGear', (data) => {
         const p = players[socket.id];
-        const tierObj = GEAR_TIERS[data.type][data.tier];
-        if (!p || p.room !== 'shop' || p.gold < tierObj.cost) return;
-
-        p.gold -= tierObj.cost;
-        p.equips[data.type] = tierObj.name;
-        
-        if (data.type === 'weapon') p.mults.str = tierObj.mult;
-        if (data.type === 'boots') p.mults.spd = tierObj.mult;
-        if (data.type === 'armor') {
-            p.mults.def = tierObj.mult;
-            p.maxHp = 100 + tierObj.hp;
-            p.hp = p.maxHp;
-        }
-        
-        socket.emit('msg', `Shop: Purchased ${tierObj.name}!`);
+        const tier = GEAR_TIERS[data.type][data.tier];
+        if (!p || p.room !== 'shop' || p.gold < tier.cost) return;
+        p.gold -= tier.cost;
+        p.equips[data.type] = tier.name;
+        if (data.type === 'weapon') p.mults.str = tier.mult;
+        if (data.type === 'boots') p.mults.spd = tier.mult;
+        if (data.type === 'armor') { p.mults.def = tier.mult; p.maxHp = (p.charClass==='Warrior'?200:100) + tier.hp; p.hp = p.maxHp; }
         saveDB();
     });
 
-    socket.on('disconnect', () => { 
-        if (players[socket.id]) { db.users[players[socket.id].name.toLowerCase()] = { ...players[socket.id] }; saveDB(); }
-        delete players[socket.id]; 
-    });
+    socket.on('disconnect', () => { delete players[socket.id]; });
 });
-
-function killMonster(m, killer) {
-    m.isAlive = false;
-    killer.gold += m.isBoss ? 2500 : 120;
-    if (m.isBoss) io.emit('msg', `SERVER: ${killer.name} SLAUGHTERED THE BOSS!`);
-    setTimeout(() => { m.hp = m.maxHp; m.isAlive = true; }, m.isBoss ? 45000 : 8000);
-}
-
-function killPlayer(target, killer) {
-    const loss = Math.floor(target.gold * 0.15);
-    if (killer) { killer.gold += loss; io.emit('msg', `${killer.name} executed ${target.name} (-${loss}g)`); }
-    target.gold -= loss;
-    target.hp = target.maxHp; target.room = 'hub'; target.x = 1000; target.y = 1000;
-}
 
 setInterval(() => {
     // Projectiles
     for (let i = projectiles.length - 1; i >= 0; i--) {
-        let prj = projectiles[i];
-        prj.x += prj.vx; prj.y += prj.vy; prj.range--;
+        let prj = projectiles[i]; prj.x += prj.vx; prj.y += prj.vy; prj.range--;
         let hit = false;
         monsters.forEach(m => {
-            if (m.room === prj.room && m.isAlive && Math.hypot(prj.x - m.x, prj.y - m.y) < 40) {
-                let dmg = prj.damage;
-                if (m.isBoss) {
-                    dmg = Math.max(5, dmg * 0.5); // Boss has inherent 50% damage reduction
-                    m.lastHit = Date.now();
+            if (m.room === prj.room && m.isAlive && Math.hypot(prj.x - m.x, prj.y - m.y) < 45) {
+                let d = prj.damage; if(m.isBoss) { d *= 0.4; m.lastHit = Date.now(); }
+                m.hp -= d; hit = true;
+                if (m.hp <= 0) {
+                    m.isAlive = false;
+                    if(players[prj.ownerId]) players[prj.ownerId].gold += m.isBoss ? 5000 : 150;
+                    setTimeout(() => { m.hp = m.maxHp; m.isAlive = true; }, m.isBoss ? 60000 : 8000);
                 }
-                m.hp -= dmg; hit = true;
-                if (m.hp <= 0) killMonster(m, players[prj.ownerId]);
             }
         });
         if (hit || prj.range <= 0) projectiles.splice(i, 1);
     }
-
-    // AI & Boss Regen
+    // Monster AI & Boss Regen
     monsters.forEach(m => {
         if (!m.isAlive) return;
-        if (m.isBoss && Date.now() - m.lastHit > 5000) {
-            m.hp = Math.min(m.maxHp, m.hp + 25); // Heals 25hp per tick if ignored
-        }
-        let target = null, minDist = 500;
+        if (m.isBoss && Date.now() - m.lastHit > 5000) m.hp = Math.min(m.maxHp, m.hp + 40);
+        let target = null, minDist = 600;
         for (let id in players) {
-            let p = players[id];
-            let d = Math.hypot(m.x - p.x, m.y - p.y);
+            let p = players[id]; let d = Math.hypot(m.x - p.x, m.y - p.y);
             if (p.room === m.room && d < minDist) { minDist = d; target = p; }
         }
         if (target) {
             let ang = Math.atan2(target.y - m.y, target.x - m.x);
             m.x += Math.cos(ang) * m.spd; m.y += Math.sin(ang) * m.spd;
-            if (minDist < 45 && (!m.lastAtk || Date.now() - m.lastAtk > 1000)) {
-                target.hp -= Math.max(5, m.str - (target.def * 0.3)); m.lastAtk = Date.now();
-                if (target.hp <= 0) killPlayer(target, null);
+            if (minDist < 50 && (!m.lastAtk || Date.now() - m.lastAtk > 1000)) {
+                target.hp -= Math.max(5, m.str - (target.def * 0.4)); m.lastAtk = Date.now();
+                if (target.hp <= 0) { target.hp = target.maxHp; target.room = 'hub'; target.x = 1000; target.y = 1000; }
             }
         }
     });
     io.emit('update', { players, monsters, projectiles });
 }, 30);
-
-server.listen(process.env.PORT || 3000);
+server.listen(3000);
