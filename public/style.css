@@ -1,51 +1,174 @@
-body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
+/* --- CORE STYLES --- */
+body { 
+    margin: 0; 
+    background: #000; 
+    overflow: hidden; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
 
 #gameCanvas {
     display: block;
-    margin: 0 auto;
     background: #111;
-    z-index: 1; /* Game is layer 1 */
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    z-index: 1; /* Game stays in the back */
 }
 
+/* --- LOGIN SCREEN --- */
+#login-screen {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.login-box {
+    background: #222;
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    color: white;
+    border: 2px solid #ff4d4d;
+    width: 320px;
+}
+
+.login-box input {
+    width: 90%;
+    padding: 10px;
+    margin: 10px 0;
+    background: #333;
+    border: 1px solid #444;
+    color: white;
+}
+
+.class-selector {
+    display: flex;
+    justify-content: space-around;
+    margin: 15px 0;
+}
+
+.class-btn {
+    background: #444;
+    color: #ccc;
+    border: 1px solid #555;
+    padding: 8px;
+    cursor: pointer;
+    font-size: 11px;
+    flex: 1;
+    margin: 0 2px;
+}
+
+.class-btn.active {
+    background: #ff4d4d;
+    color: white;
+    border-color: #fff;
+}
+
+.start-btn {
+    width: 100%;
+    padding: 12px;
+    background: #27ae60;
+    color: white;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+/* --- GAME GUI (Overlay) --- */
 #gui {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 10; /* UI is layer 10 (on top) */
-    pointer-events: none; /* Clicks pass through the empty space */
+    z-index: 50; /* Above game, below login */
+    pointer-events: none; /* Let movement clicks pass through to canvas */
     color: white;
+}
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.6);
+    pointer-events: auto; /* Buttons here are clickable */
 }
 
 .side-stats {
     position: absolute;
-    left: 10px;
-    top: 60px;
-    background: rgba(0, 0, 0, 0.7);
+    left: 20px;
+    top: 80px;
+    background: rgba(0, 0, 0, 0.8);
     padding: 15px;
     border-radius: 8px;
-    pointer-events: auto; /* Buttons inside ARE clickable */
+    border-left: 4px solid #f1c40f;
+    pointer-events: auto; /* SHOP BUTTONS ARE CLICKABLE */
+    min-width: 150px;
+}
+
+/* --- HEALTH BAR --- */
+.bar-bg {
+    width: 200px;
+    height: 20px;
+    background: #444;
+    border: 2px solid #222;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.bar-fill.hp {
+    height: 100%;
+    background: linear-gradient(to right, #ff4d4d, #ff9f43);
+    width: 100%;
+    transition: width 0.3s;
+}
+
+/* --- SHOP BUTTONS --- */
+#shop-menu {
+    margin-top: 15px;
+    border-top: 1px solid #444;
+    padding-top: 10px;
 }
 
 #shop-menu button {
     display: block;
     width: 100%;
-    margin-top: 10px;
+    margin-top: 8px;
     padding: 10px;
     background: #f1c40f;
+    color: #000;
     border: none;
     font-weight: bold;
+    font-size: 12px;
     cursor: pointer;
     border-radius: 4px;
+    transition: transform 0.1s, background 0.2s;
 }
 
 #shop-menu button:hover {
-    background: #d4ac0d;
+    background: #fff;
+    transform: scale(1.05);
 }
 
-.top-bar {
-    padding: 10px;
-    background: rgba(0,0,0,0.5);
-    pointer-events: auto;
+#shop-menu button:active {
+    transform: scale(0.95);
+}
+
+/* --- UTILS --- */
+.fs-btn {
+    background: #34495e;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 4px;
 }
