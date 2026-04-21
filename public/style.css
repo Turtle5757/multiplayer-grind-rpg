@@ -1,43 +1,36 @@
-/* --- CRITICAL SCREEN RESET --- */
+/* Hard Reset to fix centering issues */
 * {
-    box-sizing: border-box;
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
 }
 
-html, body {
-    width: 100vw;
-    height: 100vh;
+body, html {
+    width: 100%;
+    height: 100%;
     overflow: hidden;
     background: #000;
-    font-family: 'Segoe UI', sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: white;
 }
 
 #gameCanvas {
-    position: fixed; /* Locks the game to the top-left of the browser */
+    position: fixed; /* Ensures the canvas stays locked to the top-left */
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    display: block;
     z-index: 1;
 }
 
-/* --- UI OVERLAYS --- */
-#gui {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100vw; height: 100vh;
-    z-index: 50;
-    pointer-events: none;
-    color: white;
-}
-
+/* Login Screen Styles */
 #login-screen {
     position: fixed;
-    top: 0; left: 0;
-    width: 100vw; height: 100vh;
-    background: rgba(0, 0, 0, 0.9);
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('https://www.transparenttextures.com/patterns/dark-matter.png');
     display: flex;
     justify-content: center;
     align-items: center;
@@ -45,35 +38,161 @@ html, body {
 }
 
 .login-box {
-    background: #222;
-    padding: 30px;
-    border-radius: 15px;
-    border: 2px solid #ff4d4d;
+    background: #1a1a1a;
+    padding: 40px;
+    border: 3px solid #ff4d4d;
+    border-radius: 20px;
     text-align: center;
+    box-shadow: 0 0 20px rgba(255, 77, 77, 0.3);
+}
+
+.login-box h1 { margin-bottom: 20px; letter-spacing: 3px; color: #ff4d4d; }
+
+input {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    background: #333;
+    border: 1px solid #555;
+    color: white;
+    border-radius: 5px;
+}
+
+.class-selector {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.class-btn {
+    flex: 1;
+    padding: 10px;
+    background: #444;
+    border: none;
+    color: white;
+    cursor: pointer;
+    border-radius: 5px;
+    font-weight: bold;
+    transition: 0.2s;
+}
+
+.class-btn.active {
+    background: #ff4d4d;
+    transform: scale(1.05);
+}
+
+.start-btn {
+    width: 100%;
+    padding: 15px;
+    background: #27ae60;
+    border: none;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 1.1em;
+}
+
+/* GUI Elements */
+#gui {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 50;
+    pointer-events: none; /* Allows clicks to pass through to the game */
+}
+
+.side-stats {
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    background: rgba(0, 0, 0, 0.85);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #444;
     pointer-events: auto;
 }
 
-/* Class Buttons */
-.class-selector { display: flex; gap: 10px; margin: 15px 0; }
-.class-btn {
-    flex: 1; padding: 10px; background: #444; border: none;
-    color: white; cursor: pointer; border-radius: 5px;
-}
-.class-btn.active { background: #ff4d4d; font-weight: bold; }
-
-.side-stats {
-    position: absolute; left: 20px; top: 20px;
-    background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px;
-    pointer-events: auto; min-width: 200px;
+.bar-bg {
+    width: 200px;
+    height: 22px;
+    background: #222;
+    border-radius: 11px;
+    overflow: hidden;
+    margin-bottom: 15px;
+    border: 1px solid #555;
 }
 
+.bar-fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #ff4d4d, #c0392b);
+    transition: width 0.3s ease;
+}
+
+.stat-row {
+    font-weight: bold;
+    margin: 5px 0;
+    text-shadow: 1px 1px 2px black;
+}
+
+/* Shop Menu */
 #shop-menu {
-    position: absolute; right: 20px; top: 20px;
-    background: rgba(0,0,0,0.9); padding: 20px; border-radius: 10px;
-    pointer-events: auto; width: 280px; max-height: 80vh; overflow-y: auto;
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    background: rgba(0, 0, 0, 0.9);
+    padding: 20px;
+    border-radius: 12px;
+    border: 2px solid #f1c40f;
+    width: 280px;
+    pointer-events: auto;
+    max-height: 85vh;
+    overflow-y: auto;
 }
+
+#shop-menu h2 { color: #f1c40f; text-align: center; margin-bottom: 15px; }
 
 #shop-menu button {
-    width: 100%; margin: 5px 0; padding: 10px;
-    background: #f1c40f; border: none; cursor: pointer; font-weight: bold;
+    width: 100%;
+    padding: 12px;
+    margin: 6px 0;
+    background: #f39c12;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+#shop-menu button:hover { background: #e67e22; }
+
+/* Chat Box */
+#chat-container {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    width: 350px;
+    pointer-events: auto;
+}
+
+#chat-box {
+    height: 150px;
+    background: rgba(0, 0, 0, 0.7);
+    overflow-y: auto;
+    padding: 10px;
+    border-radius: 8px 8px 0 0;
+    font-size: 14px;
+}
+
+#chat-input {
+    width: 100%;
+    padding: 12px;
+    background: #222;
+    border: 1px solid #444;
+    color: white;
+    border-radius: 0 0 8px 8px;
 }
