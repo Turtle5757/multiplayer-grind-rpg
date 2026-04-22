@@ -1,180 +1,142 @@
-/* 1. THE NUCLEAR RESET 
-   This kills every default margin and padding that causes the 'white spot'. */
+/* KILL ALL BROWSER DEFAULTS */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-/* 2. BODY & HTML 
-   Forces the container to be the exact size of the monitor. */
 html, body {
-    width: 100%;
-    height: 100%;
-    overflow: hidden; /* Prevents the white spot/scrollbar on the right */
-    background-color: #000; /* Makes the background black during loads */
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden; /* This is what kills the white spot */
+    background-color: #000;
+    position: fixed; /* Prevents mobile/browser bounce */
 }
 
-/* 3. THE CANVAS 
-   This is the fix for the 'off to the left' issue. */
 #gameCanvas {
-    display: block;   /* Critical: Prevents the 4px 'text gap' at the bottom */
-    position: fixed;  /* Locks it to the corners */
-    top: 0;
-    left: 0;
-    width: 100vw;     /* Uses 100% of the Viewport Width */
-    height: 100vh;    /* Uses 100% of the Viewport Height */
-    z-index: 1;       /* Places it behind the UI */
-}
-
-/* 4. GUI OVERLAY 
-   Ensures your buttons and stats float ABOVE the game screen. */
-#gui {
+    display: block;
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 10;
-    pointer-events: none; /* Allows clicks to go THROUGH to the game */
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
 }
 
-/* --- HUD & STATS STYLING --- */
-.side-stats {
-    position: absolute;
-    left: 20px;
-    top: 20px;
-    background: rgba(0, 0, 0, 0.85);
-    padding: 15px;
-    border-radius: 10px;
-    border: 1px solid #444;
-    pointer-events: auto; /* Re-enables clicks for the HUD specifically */
-}
-
-.bar-bg {
-    width: 180px;
-    height: 18px;
-    background: #222;
-    border-radius: 9px;
-    overflow: hidden;
-    margin-bottom: 10px;
-    border: 1px solid #555;
-}
-
-.bar-fill {
-    height: 100%;
-    transition: width 0.3s ease;
-}
-
-#hp-fill { background: linear-gradient(90deg, #ff4d4d, #c0392b); }
-#energy-fill { background: linear-gradient(90deg, #3498db, #2980b9); }
-
-.stat-row {
-    font-family: 'Arial', sans-serif;
-    font-weight: bold;
-    color: white;
-    font-size: 14px;
-    margin: 4px 0;
-}
-
-/* --- ABILITY SLOTS (Bottom Center) --- */
-#ability-bar {
-    position: absolute;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%); /* Perfectly centers the bar */
-    display: flex;
-    gap: 15px;
-    pointer-events: auto;
-}
-
-.ability-slot {
-    width: 60px;
-    height: 60px;
-    background: rgba(0, 0, 0, 0.8);
-    border: 2px solid #555;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.key-label { font-weight: bold; font-size: 22px; color: white; z-index: 5; }
-
-.cd-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 0%;
-    background: rgba(255, 0, 0, 0.5);
-    transition: height 0.1s linear;
-}
-
-/* --- SHOP & CHAT --- */
-#shop-menu {
-    position: absolute;
-    right: 20px;
-    top: 20px;
-    background: rgba(0, 0, 0, 0.9);
-    padding: 20px;
-    border: 2px solid #f1c40f;
-    width: 250px;
-    pointer-events: auto;
-}
-
-#shop-menu button {
-    width: 100%;
-    padding: 10px;
-    margin: 5px 0;
-    background: #f39c12;
-    border: none;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-#chat-container {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    width: 320px;
-    pointer-events: auto;
-}
-
-#chat-box {
-    height: 120px;
-    background: rgba(0, 0, 0, 0.7);
-    overflow-y: auto;
-    padding: 8px;
-    color: #fff;
-    font-size: 13px;
-}
-
-#chat-input {
-    width: 100%;
-    padding: 10px;
-    background: #222;
-    border: 1px solid #444;
-    color: white;
-}
-
-/* --- LOGIN SCREEN --- */
+/* --- THE FIXED LOGIN SCREEN --- */
 #login-screen {
     position: fixed;
-    top: 0; left: 0; width: 100vw; height: 100vh;
-    background: #000;
-    display: flex; justify-content: center; align-items: center;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(circle, #2c3e50 0%, #000000 100%);
+    display: flex;
+    justify-content: center; /* Horizontal center */
+    align-items: center;     /* Vertical center */
     z-index: 100;
 }
 
 .login-box {
-    background: #1a1a1a;
-    padding: 40px;
-    border: 3px solid #ff4d4d;
+    background: rgba(20, 20, 20, 0.95);
+    padding: 50px;
+    border: 2px solid #ff4d4d;
+    border-radius: 15px;
     text-align: center;
+    box-shadow: 0 0 30px rgba(255, 77, 77, 0.4);
+    width: 100%;
+    max-width: 450px; /* Prevents it from looking stretched */
+}
+
+.login-box h1 {
+    font-family: 'Courier New', Courier, monospace;
+    color: #ff4d4d;
+    font-size: 40px;
+    margin-bottom: 30px;
+    letter-spacing: 5px;
+    text-shadow: 2px 2px #000;
+}
+
+input {
+    width: 100%;
+    padding: 15px;
+    margin: 10px 0;
+    background: #111;
+    border: 1px solid #444;
+    color: #fff;
+    font-size: 16px;
+    outline: none;
+}
+
+input:focus { border-color: #ff4d4d; }
+
+.class-selector {
+    display: flex;
+    gap: 10px;
+    margin: 25px 0;
 }
 
 .class-btn {
-    padding: 10px 15px; margin: 5px; background: #444; color: #fff; border: none; cursor: pointer;
+    flex: 1;
+    padding: 12px;
+    background: #333;
+    border: 1px solid #555;
+    color: #fff;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
 }
-.class-btn.active { background: #ff4d4d; }
+
+.class-btn:hover { background: #444; }
+
+.class-btn.active {
+    background: #ff4d4d;
+    border-color: #fff;
+    transform: translateY(-3px);
+}
+
+.start-btn {
+    width: 100%;
+    padding: 18px;
+    background: #27ae60;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    margin-top: 10px;
+    border-radius: 5px;
+}
+
+.start-btn:hover { background: #2ecc71; }
+
+/* --- HUD & GUI --- */
+#gui {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 50;
+    pointer-events: none;
+}
+
+/* Ensure child elements like stats or buttons re-enable clicks */
+.side-stats, #ability-bar, #shop-menu, #chat-container {
+    pointer-events: auto;
+}
+
+.side-stats {
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 15px;
+    border-radius: 8px;
+}
+
+/* Other GUI styles (bars, etc.) remain as before */
+.bar-bg { width: 180px; height: 15px; background: #222; margin-bottom: 8px; border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; transition: width 0.3s; }
+.hp { background: #e74c3c; }
+.energy { background: #3498db; }
