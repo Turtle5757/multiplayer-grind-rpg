@@ -10,7 +10,6 @@ let projectiles = [];
 let rooms = {};
 let portals = []; 
 let isPlaying = false;
-let selectedClass = 'Warrior';
 
 // Camera & Viewport
 let camX = 0;
@@ -29,91 +28,91 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
+// --- AUTHENTICATION ---
+function toggleAuth(isReg) {
+    document.getElementById('create-view').style.display = isReg ? 'block' : 'none';
+    document.getElementById('login-view').style.display = isReg ? 'none' : 'block';
+}
+
 function setClass(c, event) {
-    selectedClass = c;
+    window.selectedClass = c;
     document.querySelectorAll('.class-btn').forEach(b => b.classList.remove('active'));
     event.target.classList.add('active');
 }
 
+function registerAccount() {
+    const name = document.getElementById('reg-user').value;
+    const pass = document.getElementById('reg-pass').value;
+    const charClass = window.selectedClass || 'Warrior';
+    if (!name || !pass) return alert("Enter a username and password.");
+    socket.emit('register', { name, password: pass, charClass });
+}
+
 function loginToAccount() {
     const name = document.getElementById('log-user').value;
-    // Get class from the active button
-    const activeBtn = document.querySelector('.class-btn.active');
-    const charClass = activeBtn ? activeBtn.innerText : 'Warrior';
-    
-    if(!name) return alert("Enter a name!");
-    socket.emit('login', { name, charClass });
+    const pass = document.getElementById('log-pass').value;
+    if (!name || !pass) return alert("Enter your credentials.");
+    socket.emit('login', { name, password: pass });
 }
 
 // --- SOCKET LISTENERS ---
-socket.on('init', d => {
-    myId = d.id; 
-    rooms = d.rooms; 
-    portals = d.portals; 
+socket.on('authError', (msg) => alert(msg));
+socket.on('authSuccess', () => toggleAuth(false));
+
+socket.on('init', (data) => {
+    myId = data.id; 
+    rooms = data.rooms; 
+    portals = data.portals; 
     
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('gui').style.display = 'block';
-    
-    // Build Shop Menu
-    let h = "<h3>Blacksmith</h3>";
-    for (let t in d.GEAR_TIERS) {
-        h += `<div class='shop-cat'><b>${t.toUpperCase()}</b></div>`;
-        d.GEAR_TIERS[t].forEach((item, i) => {
-            h += `<button class='shop-btn' onclick="socket.emit('buyGear',{type:'${t}',tier:${i}})">${item.name} (${item.cost}g)</button>`;
-        });
-    }
-    document.getElementById('shop-menu').innerHTML = h;
     
     isPlaying = true;
     requestAnimationFrame(draw);
 });
 
-socket.on('update', d => {
-    players = d.players; 
-    monsters = d.monsters; 
-    projectiles = d.projectiles;
+socket.on('update', (data) => {
+    players = data.players; 
+    monsters = data.monsters; 
+    projectiles = data.projectiles;
     
     const me = players[myId];
     if (me) {
-        // UI Updates
-        document.getElementById('hp-fill').style.width = (me.hp/me.maxHp*100) + "%";
+        // Update HUD Bars
+        document.getElementById('hp-fill').style.width = (me.hp / me.maxHp * 100) + "%";
         document.getElementById('energy-fill').style.width = me.energy + "%";
-        document.getElementById('gold-display').innerText = Math.floor(me.gold);
         
-        // HUD Stat Updates
+        // Update HUD Stats
         document.getElementById('str-display').innerText = Math.floor(me.str);
         document.getElementById('def-display').innerText = Math.floor(me.def);
         document.getElementById('spd-display').innerText = me.spd.toFixed(1);
+        document.getElementById('gold-display').innerText = Math.floor(me.gold);
 
-        // Shop Menu Visibility
-        document.getElementById('shop-menu').style.display = (me.room === 'shop') ? 'block' : 'none';
-        
-        // Cooldown Rendering
+        // Update Cooldowns
         let now = Date.now();
-        ['Q','E'].forEach(k => {
-            const cd = document.getElementById(`${k.toLowerCase()}-cd`);
-            if (cd) {
+        ['Q', 'E'].forEach(k => {
+            const cdFill = document.getElementById(`${k.toLowerCase()}-cd`);
+            if (cdFill) {
                 const isCooled = me.cooldowns[k] && now < me.cooldowns[k];
-                cd.style.height = isCooled ? "100%" : "0%";
+                cdFill.style.height = isCooled ? "100%" : "0%";
             }
         });
     }
 });
 
 // --- INPUT HANDLING ---
-window.addEventListener('mousemove', e => { 
+window.addEventListener('mousemove', (e) => { 
     mousePos.x = e.clientX; 
     mousePos.y = e.clientY; 
 });
 
-window.addEventListener('keydown', e => {
+window.addEventListener('keydown', (e) => {
     let k = e.key.toLowerCase();
-    // Immediate Ability Trigger
     if (k === 'q' || k === 'e') socket.emit('useAbility', k.toUpperCase());
     if (keys.hasOwnProperty(k)) keys[k] = true;
 });
 
-window.addEventListener('keyup', e => { 
+window.addEventListener('keyup', (e) => { 
     let k = e.key.toLowerCase();
     if (keys.hasOwnProperty(k)) keys[k] = false; 
 });
@@ -122,16 +121,13 @@ canvas.addEventListener('mousedown', () => {
     if (isPlaying) socket.emit('attack'); 
 });
 
-// Network Sync Loop (30 FPS)
+// Network Sync (30 FPS)
 setInterval(() => {
     if (isPlaying && players[myId]) {
         const me = players[myId];
-        // Calculate angle relative to world coordinates
         const worldMouseX = (mousePos.x / zoom) + camX;
         const worldMouseY = (mousePos.y / zoom) + camY;
         const angle = Math.atan2(worldMouseY - me.y, worldMouseX - me.x);
-        
-        // Send key states and angle for movement/training
         socket.emit('move', { keys, angle });
     }
 }, 30);
@@ -147,7 +143,7 @@ function draw() {
     const vw = canvas.width / zoom;
     const vh = canvas.height / zoom;
 
-    // Follow Player with Boundary Clamping
+    // Follow Player and clamp camera to map edges
     camX = Math.max(0, Math.min(me.x - vw / 2, WORLD_SIZE - vw));
     camY = Math.max(0, Math.min(me.y - vh / 2, WORLD_SIZE - vh));
 
@@ -157,24 +153,24 @@ function draw() {
     ctx.scale(zoom, zoom);
     ctx.translate(-camX, -camY);
 
-    // 1. Draw Environment
+    // 1. Map Background
     if (rooms[me.room]) {
         ctx.fillStyle = rooms[me.room].bg;
         ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
     }
 
-    // 2. Draw Training/Travel Portals
+    // 2. Portals
     portals.forEach(pt => {
         if (pt.fromRoom === me.room) {
             ctx.fillStyle = pt.color;
             ctx.globalAlpha = 0.3;
             ctx.beginPath(); 
-            ctx.arc(pt.x, pt.y, 70, 0, Math.PI*2); 
+            ctx.arc(pt.x, pt.y, 70, 0, Math.PI * 2); 
             ctx.fill();
             
             ctx.globalAlpha = 1.0;
             ctx.beginPath();
-            ctx.arc(pt.x, pt.y, 40, 0, Math.PI*2);
+            ctx.arc(pt.x, pt.y, 40, 0, Math.PI * 2);
             ctx.fill();
 
             ctx.fillStyle = "white";
@@ -184,15 +180,15 @@ function draw() {
         }
     });
 
-    // 3. Draw Monsters
+    // 3. Monsters
     monsters.forEach(m => {
         if (m.room === me.room && m.isAlive) {
             ctx.fillStyle = m.isBoss ? "#8e44ad" : "#e74c3c";
             ctx.beginPath(); 
-            ctx.arc(m.x, m.y, m.isBoss ? 80 : 38, 0, Math.PI*2); 
+            ctx.arc(m.x, m.y, m.isBoss ? 80 : 38, 0, Math.PI * 2); 
             ctx.fill();
 
-            // Health Bar
+            // Health Bar Above Monster
             ctx.fillStyle = "black";
             ctx.fillRect(m.x - 40, m.y - 75, 80, 10);
             ctx.fillStyle = "#2ecc71";
@@ -200,31 +196,23 @@ function draw() {
         }
     });
 
-    // 4. Draw Projectiles (Attacks & Abilities)
+    // 4. Projectiles
     projectiles.forEach(p => {
         if (p.room === me.room) {
             ctx.fillStyle = p.isSpecial ? "white" : "yellow";
             ctx.beginPath(); 
-            ctx.arc(p.x, p.y, p.isSpecial ? 15 : 8, 0, Math.PI*2); 
+            ctx.arc(p.x, p.y, p.isSpecial ? 15 : 8, 0, Math.PI * 2); 
             ctx.fill();
-            
-            // Add a slight glow to special projectiles
-            if (p.isSpecial) {
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = "white";
-                ctx.stroke();
-                ctx.shadowBlur = 0;
-            }
         }
     });
 
-    // 5. Draw Players
+    // 5. Players
     for (let id in players) {
         let p = players[id];
         if (p.room === me.room) {
             ctx.fillStyle = p.color;
             
-            // Class-Specific Shapes
+            // Draw Class Shape
             if (p.charClass === 'Warrior') {
                 ctx.fillRect(p.x - 25, p.y - 25, 50, 50);
             } else if (p.charClass === 'Archer') {
@@ -236,7 +224,7 @@ function draw() {
                 ctx.fill();
             } else { // Mage
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, 30, 0, Math.PI*2);
+                ctx.arc(p.x, p.y, 30, 0, Math.PI * 2);
                 ctx.fill();
             }
             
