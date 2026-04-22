@@ -5,8 +5,9 @@ const io = require('socket.io')(http);
 
 app.use(express.static('public'));
 
-// --- CONSTANTS & GEAR ---
 const WORLD_SIZE = 2000;
+
+// --- EQUIPMENT DATA ---
 const GEAR_TIERS = {
     weapon: [
         { name: "Rusty Sword", cost: 0, str: 5 },
@@ -25,6 +26,7 @@ const GEAR_TIERS = {
     ]
 };
 
+// --- ROOMS & PORTALS ---
 const rooms = {
     hub: { name: "Village", bg: "#15220d" },
     shop: { name: "Blacksmith", bg: "#2c3e50" },
@@ -48,6 +50,7 @@ const portals = [
 ];
 
 let players = {};
+let projectiles = [];
 let monsters = [
     { id: 1, x: 500, y: 500, hp: 100, maxHp: 100, str: 10, gold: 25, room: 'graveyard', isAlive: true, spd: 1.5 },
     { id: 2, x: 1500, y: 800, hp: 100, maxHp: 100, str: 10, gold: 25, room: 'graveyard', isAlive: true, spd: 1.5 },
@@ -57,17 +60,22 @@ let monsters = [
     { id: 21, x: 500, y: 1500, hp: 2500, maxHp: 2500, str: 120, gold: 800, room: 'void', isAlive: true, spd: 3.2 },
     { id: 999, x: 1000, y: 1000, hp: 15000, maxHp: 15000, str: 250, gold: 10000, room: 'lair', isAlive: true, spd: 1.5, isBoss: true }
 ];
-let projectiles = [];
 
 io.on('connection', (socket) => {
     socket.on('login', (data) => {
         players[socket.id] = {
-            id: socket.id, name: data.name, charClass: data.charClass,
-            x: 1000, y: 1000, hp: 100, maxHp: 100, energy: 100, gold: 0,
-            str: 10, def: 5, spd: 4, room: 'hub',
+            id: socket.id,
+            name: data.name || "Adventurer",
+            charClass: data.charClass,
+            x: 1000, y: 1000,
+            hp: 100, maxHp: 100,
+            energy: 100, gold: 0,
+            str: 10, def: 5, spd: 4,
+            room: 'hub',
             equips: { weapon: "Rusty Sword", armor: "Rags", boots: "Old Boots" },
             mults: { str: 1.0, def: 1.0, spd: 1.0 },
             cooldowns: { Q: 0, E: 0 },
+            angle: 0,
             color: data.charClass === 'Warrior' ? '#e67e22' : (data.charClass === 'Archer' ? '#2ecc71' : '#9b59b6')
         };
         socket.emit('init', { id: socket.id, rooms, portals, GEAR_TIERS });
@@ -76,69 +84,87 @@ io.on('connection', (socket) => {
     socket.on('move', (data) => {
         const p = players[socket.id];
         if (!p) return;
-        let speed = p.spd * p.mults.spd;
-        if (data.keys.w) p.y -= speed;
-        if (data.keys.s) p.y += speed;
-        if (data.keys.a) p.x -= speed;
-        if (data.keys.d) p.x += speed;
+        let finalSpd = p.spd * p.mults.spd;
+        if (data.keys.w) p.y -= finalSpd;
+        if (data.keys.s) p.y += finalSpd;
+        if (data.keys.a) p.x -= finalSpd;
+        if (data.keys.d) p.x += finalSpd;
+        
         p.x = Math.max(0, Math.min(p.x, WORLD_SIZE));
         p.y = Math.max(0, Math.min(p.y, WORLD_SIZE));
         p.angle = data.angle;
 
         portals.forEach(pt => {
             if (p.room === pt.fromRoom && Math.hypot(p.x - pt.x, p.y - pt.y) < 60) {
-                p.room = pt.toRoom; p.x = pt.targetX; p.y = pt.targetY;
+                p.room = pt.toRoom;
+                p.x = pt.targetX;
+                p.y = pt.targetY;
             }
         });
     });
 
     socket.on('useAbility', (key) => {
         const p = players[socket.id];
-        if (!p || Date.now() < p.cooldowns[key] || p.energy < 20) return;
+        if (!p || Date.now() < p.cooldowns[key]) return;
 
         if (key === 'Q') {
-            let pSpd = 12, pDmg = p.str, pSize = 8;
-            if (p.charClass === 'Warrior') { pDmg += 30; p.cooldowns.Q = Date.now() + 3000; }
-            if (p.charClass === 'Archer') { pSpd = 18; p.cooldowns.Q = Date.now() + 1000; }
-            if (p.charClass === 'Mage') { pDmg += 80; pSize = 12; p.cooldowns.Q = Date.now() + 4000; }
+            if (p.energy < 20) return;
+            let pSpd = 12, pDmg = p.str * p.mults.str, isSpecial = false;
             
-            projectiles.push({ x: p.x, y: p.y, vx: Math.cos(p.angle) * pSpd, vy: Math.sin(p.angle) * pSpd, owner: socket.id, room: p.room, damage: pDmg, color: p.color, isSpecial: (p.charClass === 'Mage') });
+            if (p.charClass === 'Warrior') { pDmg += 30; p.cooldowns.Q = Date.now() + 3000; }
+            else if (p.charClass === 'Archer') { pSpd = 18; p.cooldowns.Q = Date.now() + 1000; }
+            else if (p.charClass === 'Mage') { pDmg += 80; isSpecial = true; p.cooldowns.Q = Date.now() + 4000; }
+            
+            projectiles.push({
+                x: p.x, y: p.y,
+                vx: Math.cos(p.angle) * pSpd,
+                vy: Math.sin(p.angle) * pSpd,
+                owner: socket.id, room: p.room,
+                damage: pDmg, color: p.color, isSpecial: isSpecial
+            });
             p.energy -= 20;
-        } else if (key === 'E') {
-            if (p.charClass === 'Warrior') { 
-                p.mults.str = 1.8; 
-                setTimeout(() => p.mults.str = 1.0, 5000); 
+        } 
+        else if (key === 'E') {
+            if (p.energy < 40) return;
+            if (p.charClass === 'Warrior') {
+                p.mults.str = 1.8;
+                setTimeout(() => { if (players[socket.id]) players[socket.id].mults.str = 1.0; }, 5000);
                 p.cooldowns.E = Date.now() + 10000;
-            }
-            if (p.charClass === 'Archer') { 
-                p.x += Math.cos(p.angle) * 150; p.y += Math.sin(p.angle) * 150; 
+            } else if (p.charClass === 'Archer') {
+                p.x += Math.cos(p.angle) * 150;
+                p.y += Math.sin(p.angle) * 150;
                 p.cooldowns.E = Date.now() + 4000;
-            }
-            if (p.charClass === 'Mage') { 
-                p.hp = Math.min(p.maxHp, p.hp + 60); 
+            } else if (p.charClass === 'Mage') {
+                p.hp = Math.min(p.maxHp, p.hp + 60);
                 p.cooldowns.E = Date.now() + 8000;
             }
             p.energy -= 40;
         }
     });
 
-    socket.on('buyGear', (data) => {
-        const p = players[socket.id];
-        if (!p || p.room !== 'shop') return;
-        const item = GEAR_TIERS[data.type][data.tier];
-        if (p.gold >= item.cost) {
-            p.gold -= item.cost;
-            p.equips[data.type] = item.name;
-            if (data.type === 'weapon') p.str = 10 + item.str;
-            if (data.type === 'armor') p.def = 5 + item.def;
-            if (data.type === 'boots') p.spd = 4 + item.spd;
-        }
-    });
-
     socket.on('attack', () => {
         const p = players[socket.id];
         if (!p) return;
-        projectiles.push({ x: p.x, y: p.y, vx: Math.cos(p.angle) * 12, vy: Math.sin(p.angle) * 12, owner: socket.id, room: p.room, damage: p.str, color: p.color });
+        projectiles.push({
+            x: p.x, y: p.y,
+            vx: Math.cos(p.angle) * 12,
+            vy: Math.sin(p.angle) * 12,
+            owner: socket.id, room: p.room,
+            damage: p.str * p.mults.str, color: p.color, isSpecial: false
+        });
+    });
+
+    socket.on('buyGear', (data) => {
+        const p = players[socket.id];
+        if (!p || p.room !== 'shop') return;
+        const tier = GEAR_TIERS[data.type][data.tier];
+        if (p.gold >= tier.cost) {
+            p.gold -= tier.cost;
+            p.equips[data.type] = tier.name;
+            if (data.type === 'weapon') p.str = 10 + tier.str;
+            if (data.type === 'armor') p.def = 5 + tier.def;
+            if (data.type === 'boots') p.spd = 4 + tier.spd;
+        }
     });
 
     socket.on('chat', (msg) => {
@@ -149,33 +175,40 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => delete players[socket.id]);
 });
 
+// --- MAIN LOOP ---
 setInterval(() => {
-    projectiles.forEach((proj, i) => {
-        proj.x += proj.vx; proj.y += proj.vy;
-        if (proj.x < 0 || proj.x > WORLD_SIZE || proj.y < 0 || proj.y > WORLD_SIZE) projectiles.splice(i, 1);
+    // Projectiles
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        let pr = projectiles[i];
+        pr.x += pr.vx; pr.y += pr.vy;
         
+        if (pr.x < 0 || pr.x > WORLD_SIZE || pr.y < 0 || pr.y > WORLD_SIZE) {
+            projectiles.splice(i, 1); continue;
+        }
+
         monsters.forEach(m => {
-            if (m.isAlive && m.room === proj.room && Math.hypot(proj.x - m.x, proj.y - m.y) < 40) {
-                m.hp -= proj.damage;
+            if (m.isAlive && m.room === pr.room && Math.hypot(pr.x - m.x, pr.y - m.y) < 40) {
+                m.hp -= pr.damage;
                 projectiles.splice(i, 1);
                 if (m.hp <= 0) {
                     m.isAlive = false;
-                    if (players[proj.owner]) players[proj.owner].gold += m.gold;
+                    if (players[pr.owner]) players[pr.owner].gold += m.gold;
                     setTimeout(() => { m.isAlive = true; m.hp = m.maxHp; }, 10000);
                 }
             }
         });
-    });
+    }
 
+    // Player & Monster Logic
     Object.values(players).forEach(p => {
         p.energy = Math.min(100, p.energy + 0.5);
         monsters.forEach(m => {
             if (m.isAlive && m.room === p.room) {
-                let dist = Math.hypot(p.x - m.x, p.y - m.y);
-                if (dist < 400) {
-                    let ang = Math.atan2(p.y - m.y, p.x - m.x);
-                    m.x += Math.cos(ang) * m.spd; m.y += Math.sin(ang) * m.spd;
-                    if (dist < 50 && (!m.lastAtk || Date.now() - m.lastAtk > 1000)) {
+                let d = Math.hypot(p.x - m.x, p.y - m.y);
+                if (d < 400) {
+                    let a = Math.atan2(p.y - m.y, p.x - m.x);
+                    m.x += Math.cos(a) * m.spd; m.y += Math.sin(a) * m.spd;
+                    if (d < 50 && (!m.lastAtk || Date.now() - m.lastAtk > 1000)) {
                         p.hp -= Math.max(2, m.str - (p.def * 0.5));
                         m.lastAtk = Date.now();
                         if (p.hp <= 0) {
@@ -187,7 +220,8 @@ setInterval(() => {
             }
         });
     });
+
     io.emit('update', { players, monsters, projectiles });
 }, 30);
 
-http.listen(3000, () => console.log('Server running on 3000'));
+http.listen(3000, () => console.log('Server started on port 3000'));
