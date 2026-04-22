@@ -6,8 +6,6 @@ const io = require('socket.io')(http);
 app.use(express.static('public'));
 
 const WORLD_SIZE = 2000;
-
-// --- PERSISTENT USER DATA (Simulated Database) ---
 const users = {}; 
 
 const GEAR_TIERS = {
@@ -37,8 +35,8 @@ const rooms = {
     lair: { name: "Boss Lair", bg: "#2a0033" }
 };
 
-// --- PROGRESSION PORTAL MAP (LINEAR) ---
-const portals = [
+// --- CONSTANT PORTAL DEFINITIONS ---
+const PORTALS = [
     // Village (Hub)
     { fromRoom: 'hub', toRoom: 'shop', x: 1800, y: 200, targetX: 1000, targetY: 1800, color: '#f1c40f', label: 'Blacksmith' },
     { fromRoom: 'hub', toRoom: 'graveyard', x: 1000, y: 100, targetX: 1000, targetY: 1850, color: '#555', label: 'ENTER DUNGEON' },
@@ -55,7 +53,7 @@ const portals = [
     { fromRoom: 'void', toRoom: 'caves', x: 1000, y: 1950, targetX: 1000, targetY: 200, color: '#fff', label: 'UP (Level 2)' },
     { fromRoom: 'void', toRoom: 'lair', x: 1900, y: 1000, targetX: 200, targetY: 1000, color: '#ff0000', label: 'BOSS ENTRANCE' },
 
-    // Utilities
+    // Shop & Boss
     { fromRoom: 'shop', toRoom: 'hub', x: 1000, y: 1950, targetX: 1800, targetY: 350, color: '#fff', label: 'EXIT' },
     { fromRoom: 'lair', toRoom: 'hub', x: 100, y: 1000, targetX: 1000, targetY: 1000, color: '#fff', label: 'ESCAPE' }
 ];
@@ -73,27 +71,24 @@ let monsters = [
 ];
 
 io.on('connection', (socket) => {
-    // REGISTER LOGIC
     socket.on('register', (data) => {
-        if (!data.name || !data.password) return socket.emit('authError', 'Missing fields!');
-        if (users[data.name]) return socket.emit('authError', 'User already exists!');
-        
+        if (!data.name || !data.password) return socket.emit('authError', 'Fill all fields.');
+        if (users[data.name]) return socket.emit('authError', 'Username taken.');
         users[data.name] = {
             password: data.password,
             charClass: data.charClass,
             gold: 0,
             equips: { weapon: "Rusty Sword", armor: "Rags", boots: "Old Boots" }
         };
-        socket.emit('authSuccess', 'Account created! Now login.');
+        socket.emit('authSuccess', 'Account created! Please login.');
     });
 
-    // LOGIN LOGIC
     socket.on('login', (data) => {
         const user = users[data.name];
-        if (!user || user.password !== data.password) return socket.emit('authError', 'Invalid credentials!');
+        if (!user || user.password !== data.password) return socket.emit('authError', 'Invalid login.');
         
-        // Anti-double-login
-        for(let id in players) if(players[id].name === data.name) return socket.emit('authError', 'User already logged in!');
+        // Prevent duplicate logins
+        for(let id in players) if(players[id].name === data.name) return socket.emit('authError', 'Already logged in!');
 
         players[socket.id] = {
             id: socket.id,
@@ -111,7 +106,8 @@ io.on('connection', (socket) => {
             color: user.charClass === 'Warrior' ? '#e67e22' : (user.charClass === 'Archer' ? '#2ecc71' : '#9b59b6')
         };
         
-        socket.emit('init', { id: socket.id, rooms, portals, GEAR_TIERS });
+        // CRITICAL: Send portals and rooms in the init packet
+        socket.emit('init', { id: socket.id, rooms, portals: PORTALS, GEAR_TIERS });
     });
 
     socket.on('move', (data) => {
@@ -127,13 +123,24 @@ io.on('connection', (socket) => {
         p.y = Math.max(0, Math.min(p.y, WORLD_SIZE));
         p.angle = data.angle;
 
-        portals.forEach(pt => {
+        // Use global PORTALS for detection
+        PORTALS.forEach(pt => {
             if (p.room === pt.fromRoom && Math.hypot(p.x - pt.x, p.y - pt.y) < 80) {
                 p.room = pt.toRoom;
                 p.x = pt.targetX;
                 p.y = pt.targetY;
             }
         });
+    });
+
+    socket.on('attack', () => {
+        const p = players[socket.id];
+        if (!p) return;
+        const now = Date.now();
+        if (now - p.lastClick < 250) return; 
+        p.lastClick = now;
+
+        projectiles.push({ x: p.x, y: p.y, vx: Math.cos(p.angle)*12, vy: Math.sin(p.angle)*12, owner: socket.id, room: p.room, damage: p.str*p.mults.str, color: p.color });
     });
 
     socket.on('useAbility', (key) => {
@@ -164,16 +171,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('attack', () => {
-        const p = players[socket.id];
-        if (!p) return;
-        const now = Date.now();
-        if (now - p.lastClick < 250) return; // CLICK LIMITER
-        p.lastClick = now;
-
-        projectiles.push({ x: p.x, y: p.y, vx: Math.cos(p.angle)*12, vy: Math.sin(p.angle)*12, owner: socket.id, room: p.room, damage: p.str*p.mults.str, color: p.color });
-    });
-
     socket.on('buyGear', (data) => {
         const p = players[socket.id];
         if (!p || p.room !== 'shop') return;
@@ -189,11 +186,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('chat', (msg) => {
-        const p = players[socket.id];
-        if (p) io.emit('msg', `${p.name}: ${msg}`);
-    });
-
     socket.on('disconnect', () => {
         if(players[socket.id]) {
             const p = players[socket.id];
@@ -205,7 +197,7 @@ io.on('connection', (socket) => {
 });
 
 setInterval(() => {
-    // Projectiles logic
+    // Projectile Updates
     for (let i = projectiles.length - 1; i >= 0; i--) {
         let pr = projectiles[i];
         pr.x += pr.vx; pr.y += pr.vy;
@@ -223,7 +215,7 @@ setInterval(() => {
         });
     }
 
-    // Monster AI & Player Regen
+    // Logic Loop
     Object.values(players).forEach(p => {
         p.energy = Math.min(100, p.energy + 0.5);
         monsters.forEach(m => {
