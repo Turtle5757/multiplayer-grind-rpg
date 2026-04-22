@@ -75,6 +75,7 @@ io.on('connection', (socket) => {
             equips: { weapon: "Rusty Sword", armor: "Rags", boots: "Old Boots" },
             mults: { str: 1.0, def: 1.0, spd: 1.0 },
             cooldowns: { Q: 0, E: 0 },
+            lastClick: 0, // Click limiter tracking
             angle: 0,
             color: data.charClass === 'Warrior' ? '#e67e22' : (data.charClass === 'Archer' ? '#2ecc71' : '#9b59b6')
         };
@@ -111,9 +112,19 @@ io.on('connection', (socket) => {
             if (p.energy < 20) return;
             let pSpd = 12, pDmg = p.str * p.mults.str, isSpecial = false;
             
-            if (p.charClass === 'Warrior') { pDmg += 30; p.cooldowns.Q = Date.now() + 3000; }
-            else if (p.charClass === 'Archer') { pSpd = 18; p.cooldowns.Q = Date.now() + 1000; }
-            else if (p.charClass === 'Mage') { pDmg += 80; isSpecial = true; p.cooldowns.Q = Date.now() + 4000; }
+            if (p.charClass === 'Warrior') { 
+                pDmg += 30; 
+                p.cooldowns.Q = Date.now() + 3000; 
+            }
+            else if (p.charClass === 'Archer') { 
+                pSpd = 18; 
+                p.cooldowns.Q = Date.now() + 1000; 
+            }
+            else if (p.charClass === 'Mage') { 
+                pDmg += 80; 
+                isSpecial = true; 
+                p.cooldowns.Q = Date.now() + 4000; 
+            }
             
             projectiles.push({
                 x: p.x, y: p.y,
@@ -145,6 +156,12 @@ io.on('connection', (socket) => {
     socket.on('attack', () => {
         const p = players[socket.id];
         if (!p) return;
+
+        // CLICK LIMITER: 250ms (4 clicks per second max)
+        const now = Date.now();
+        if (now - p.lastClick < 250) return;
+        p.lastClick = now;
+
         projectiles.push({
             x: p.x, y: p.y,
             vx: Math.cos(p.angle) * 12,
@@ -175,15 +192,16 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => delete players[socket.id]);
 });
 
-// --- MAIN LOOP ---
+// --- ENGINE LOOPS ---
 setInterval(() => {
-    // Projectiles
+    // Handle Projectiles
     for (let i = projectiles.length - 1; i >= 0; i--) {
         let pr = projectiles[i];
         pr.x += pr.vx; pr.y += pr.vy;
         
         if (pr.x < 0 || pr.x > WORLD_SIZE || pr.y < 0 || pr.y > WORLD_SIZE) {
-            projectiles.splice(i, 1); continue;
+            projectiles.splice(i, 1);
+            continue;
         }
 
         monsters.forEach(m => {
@@ -192,28 +210,38 @@ setInterval(() => {
                 projectiles.splice(i, 1);
                 if (m.hp <= 0) {
                     m.isAlive = false;
-                    if (players[pr.owner]) players[pr.owner].gold += m.gold;
+                    if (players[pr.owner]) {
+                        players[pr.owner].gold += m.gold;
+                    }
                     setTimeout(() => { m.isAlive = true; m.hp = m.maxHp; }, 10000);
                 }
             }
         });
     }
 
-    // Player & Monster Logic
+    // Handle Player Status & Monster AI
     Object.values(players).forEach(p => {
-        p.energy = Math.min(100, p.energy + 0.5);
+        p.energy = Math.min(100, p.energy + 0.5); // Refill energy
+        
         monsters.forEach(m => {
             if (m.isAlive && m.room === p.room) {
                 let d = Math.hypot(p.x - m.x, p.y - m.y);
                 if (d < 400) {
                     let a = Math.atan2(p.y - m.y, p.x - m.x);
-                    m.x += Math.cos(a) * m.spd; m.y += Math.sin(a) * m.spd;
+                    m.x += Math.cos(a) * m.spd;
+                    m.y += Math.sin(a) * m.spd;
+                    
                     if (d < 50 && (!m.lastAtk || Date.now() - m.lastAtk > 1000)) {
-                        p.hp -= Math.max(2, m.str - (p.def * 0.5));
+                        // Combat Balance: Monster STR vs Player DEF (1.1x Scaling rule)
+                        let damageDealt = Math.max(2, m.str - (p.def * 0.5));
+                        p.hp -= damageDealt;
                         m.lastAtk = Date.now();
+                        
                         if (p.hp <= 0) {
-                            p.hp = p.maxHp; p.room = 'hub'; p.x = 1000; p.y = 1000;
-                            p.gold = Math.floor(p.gold * 0.9);
+                            p.hp = p.maxHp;
+                            p.room = 'hub';
+                            p.x = 1000; p.y = 1000;
+                            p.gold = Math.floor(p.gold * 0.9); // 10% Gold loss on death
                         }
                     }
                 }
@@ -224,4 +252,4 @@ setInterval(() => {
     io.emit('update', { players, monsters, projectiles });
 }, 30);
 
-http.listen(3000, () => console.log('Server started on port 3000'));
+http.listen(3000, () => console.log('Server running on port 3000'));
