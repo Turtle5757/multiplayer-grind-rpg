@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dungeon Crawler - Training & Combat</title>
+    <title>Multiplayer RPG - Dev Build</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -11,70 +11,56 @@
 
     <div id="login-screen">
         <div class="auth-box">
-            <h1>DUNGEON CRAWLER</h1>
-            <div id="auth-status"></div>
+            <h1>CHAMPION RISE</h1>
+            <p>Choose your path to begin training</p>
             
-            <div id="create-view">
-                <h3>Create Your Hero</h3>
-                <input type="text" id="reg-user" placeholder="Username" maxlength="12">
-                <input type="password" id="reg-pass" placeholder="Password">
-                
-                <div class="class-selection">
-                    <button class="class-btn active" onclick="setClass('Warrior', event)">Warrior</button>
-                    <button class="class-btn" onclick="setClass('Archer', event)">Archer</button>
-                    <button class="class-btn" onclick="setClass('Mage', event)">Mage</button>
-                </div>
-                
-                <button class="main-btn" onclick="registerAccount()">Create Account</button>
-                <p onclick="toggleAuth(false)" class="toggle-link">Already have an account? Login</p>
+            <div class="class-selector">
+                <button class="class-btn active" onclick="setClass('Warrior', event)">Warrior</button>
+                <button class="class-btn" onclick="setClass('Archer', event)">Archer</button>
+                <button class="class-btn" onclick="setClass('Mage', event)">Mage</button>
             </div>
 
-            <div id="login-view" style="display: none;">
-                <h3>Welcome Back</h3>
-                <input type="text" id="log-user" placeholder="Username">
-                <input type="password" id="log-pass" placeholder="Password">
-                <button class="main-btn" onclick="loginToAccount()">Enter World</button>
-                <p onclick="toggleAuth(true)" class="toggle-link">Need an account? Register</p>
+            <input type="text" id="log-user" placeholder="Enter Hero Name..." maxlength="12">
+            <button class="primary-btn" onclick="loginToAccount()">ENTER WORLD</button>
+            
+            <div class="controls-hint">
+                <span><b>WASD</b> to Move</span> | <span><b>Click</b> to Attack/Train</span><br>
+                <span><b>Q / E</b> for Abilities</span>
             </div>
         </div>
     </div>
 
     <div id="gui" style="display: none;">
-        <div id="stats-panel">
-            <div class="stat-row">
-                <span class="stat-label">HP</span>
-                <div class="bar-bg"><div id="hp-fill" class="bar-fill hp"></div></div>
+        <div class="stats-container">
+            <div class="bar-wrapper">
+                <div class="bar-label">HP</div>
+                <div class="bar-bg"><div id="hp-fill"></div></div>
             </div>
-            
-            <div class="stat-row">
-                <span class="stat-label">NRG</span>
-                <div class="bar-bg"><div id="energy-fill" class="bar-fill energy"></div></div>
+            <div class="bar-wrapper">
+                <div class="bar-label">NRG</div>
+                <div class="bar-bg energy"><div id="energy-fill"></div></div>
             </div>
-            
-            <div id="gold-wrap">GOLD: <span id="gold-display">0</span></div>
-            
-            <hr class="gui-divider">
-            
-            <div class="combat-stats">
-                <div class="stat-line">STR: <span id="str-display" class="stat-val">0</span></div>
-                <div class="stat-line">DEF: <span id="def-display" class="stat-val">0</span></div>
-                <div class="stat-line">SPD: <span id="spd-display" class="stat-val">0</span></div>
+            <div class="stat-row">
+                <span>STR: <b id="str-display">0</b></span>
+                <span>DEF: <b id="def-display">0</b></span>
+                <span>SPD: <b id="spd-display">0</b></span>
             </div>
         </div>
 
-        <div id="ability-bar">
-            <div class="skill-slot">
-                <div class="cd-overlay" id="q-cd"></div>
-                <span class="key-label">Q</span>
-            </div>
-            <div class="skill-slot">
-                <div class="cd-overlay" id="e-cd"></div>
-                <span class="key-label">E</span>
-            </div>
+        <div class="gold-counter">
+            💰 <span id="gold-display">0</span>
         </div>
 
-        <div id="shop-menu" style="display: none;">
+        <div class="ability-bar">
+            <div class="ability-slot">
+                <div class="key-bind">Q</div>
+                <div id="q-cd" class="cd-overlay"></div>
             </div>
+            <div class="ability-slot">
+                <div class="key-bind">E</div>
+                <div id="e-cd" class="cd-overlay"></div>
+            </div>
+        </div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
