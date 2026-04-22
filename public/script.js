@@ -35,29 +35,17 @@ function setClass(c, event) {
     event.target.classList.add('active');
 }
 
-function toggleAuth(isReg) {
-    document.getElementById('create-view').style.display = isReg ? 'block' : 'none';
-    document.getElementById('login-view').style.display = isReg ? 'none' : 'block';
-}
-
-function registerAccount() {
-    const name = document.getElementById('reg-user').value;
-    const pass = document.getElementById('reg-pass').value;
-    if(!name || !pass) return;
-    socket.emit('register', { name, password: pass, charClass: selectedClass });
-}
-
 function loginToAccount() {
     const name = document.getElementById('log-user').value;
-    const pass = document.getElementById('log-pass').value;
-    if(!name || !pass) return;
-    socket.emit('login', { name, password: pass });
+    // Get class from the active button
+    const activeBtn = document.querySelector('.class-btn.active');
+    const charClass = activeBtn ? activeBtn.innerText : 'Warrior';
+    
+    if(!name) return alert("Enter a name!");
+    socket.emit('login', { name, charClass });
 }
 
 // --- SOCKET LISTENERS ---
-socket.on('authError', m => { alert(m); });
-socket.on('authSuccess', m => { toggleAuth(false); });
-
 socket.on('init', d => {
     myId = d.id; 
     rooms = d.rooms; 
@@ -87,29 +75,32 @@ socket.on('update', d => {
     
     const me = players[myId];
     if (me) {
-        // Update Bars
+        // UI Updates
         document.getElementById('hp-fill').style.width = (me.hp/me.maxHp*100) + "%";
         document.getElementById('energy-fill').style.width = me.energy + "%";
         document.getElementById('gold-display').innerText = Math.floor(me.gold);
         
-        // UPDATE COMBAT STATS HUD
-        document.getElementById('str-display').innerText = Math.floor(me.str * me.mults.str);
-        document.getElementById('def-display').innerText = Math.floor(me.def * me.mults.def);
-        document.getElementById('spd-display').innerText = (me.spd * me.mults.spd).toFixed(1);
+        // HUD Stat Updates
+        document.getElementById('str-display').innerText = Math.floor(me.str);
+        document.getElementById('def-display').innerText = Math.floor(me.def);
+        document.getElementById('spd-display').innerText = me.spd.toFixed(1);
 
         // Shop Menu Visibility
         document.getElementById('shop-menu').style.display = (me.room === 'shop') ? 'block' : 'none';
         
-        // Cooldowns
+        // Cooldown Rendering
         let now = Date.now();
         ['Q','E'].forEach(k => {
             const cd = document.getElementById(`${k.toLowerCase()}-cd`);
-            if (cd) cd.style.height = (me.cooldowns[k] && now < me.cooldowns[k]) ? "100%" : "0%";
+            if (cd) {
+                const isCooled = me.cooldowns[k] && now < me.cooldowns[k];
+                cd.style.height = isCooled ? "100%" : "0%";
+            }
         });
     }
 });
 
-// --- INPUTS ---
+// --- INPUT HANDLING ---
 window.addEventListener('mousemove', e => { 
     mousePos.x = e.clientX; 
     mousePos.y = e.clientY; 
@@ -117,30 +108,35 @@ window.addEventListener('mousemove', e => {
 
 window.addEventListener('keydown', e => {
     let k = e.key.toLowerCase();
+    // Immediate Ability Trigger
     if (k === 'q' || k === 'e') socket.emit('useAbility', k.toUpperCase());
     if (keys.hasOwnProperty(k)) keys[k] = true;
 });
 
 window.addEventListener('keyup', e => { 
-    if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; 
+    let k = e.key.toLowerCase();
+    if (keys.hasOwnProperty(k)) keys[k] = false; 
 });
 
 canvas.addEventListener('mousedown', () => { 
     if (isPlaying) socket.emit('attack'); 
 });
 
-// Logic Loop
+// Network Sync Loop (30 FPS)
 setInterval(() => {
     if (isPlaying && players[myId]) {
         const me = players[myId];
+        // Calculate angle relative to world coordinates
         const worldMouseX = (mousePos.x / zoom) + camX;
         const worldMouseY = (mousePos.y / zoom) + camY;
         const angle = Math.atan2(worldMouseY - me.y, worldMouseX - me.x);
+        
+        // Send key states and angle for movement/training
         socket.emit('move', { keys, angle });
     }
 }, 30);
 
-// --- RENDER ---
+// --- RENDER ENGINE ---
 function draw() {
     if (!isPlaying || !players[myId]) { 
         requestAnimationFrame(draw); 
@@ -151,7 +147,7 @@ function draw() {
     const vw = canvas.width / zoom;
     const vh = canvas.height / zoom;
 
-    // Follow Player & Clamp to World
+    // Follow Player with Boundary Clamping
     camX = Math.max(0, Math.min(me.x - vw / 2, WORLD_SIZE - vw));
     camY = Math.max(0, Math.min(me.y - vh / 2, WORLD_SIZE - vh));
 
@@ -161,13 +157,13 @@ function draw() {
     ctx.scale(zoom, zoom);
     ctx.translate(-camX, -camY);
 
-    // 1. Draw Map Background
+    // 1. Draw Environment
     if (rooms[me.room]) {
         ctx.fillStyle = rooms[me.room].bg;
         ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
     }
 
-    // 2. Draw Portals (Gym, Lake, Shrine, etc.)
+    // 2. Draw Training/Travel Portals
     portals.forEach(pt => {
         if (pt.fromRoom === me.room) {
             ctx.fillStyle = pt.color;
@@ -183,8 +179,8 @@ function draw() {
 
             ctx.fillStyle = "white";
             ctx.textAlign = "center";
-            ctx.font = "bold 30px Arial";
-            ctx.fillText(pt.label, pt.x, pt.y - 90);
+            ctx.font = "bold 32px Arial";
+            ctx.fillText(pt.label, pt.x, pt.y - 95);
         }
     });
 
@@ -193,54 +189,62 @@ function draw() {
         if (m.room === me.room && m.isAlive) {
             ctx.fillStyle = m.isBoss ? "#8e44ad" : "#e74c3c";
             ctx.beginPath(); 
-            ctx.arc(m.x, m.y, m.isBoss ? 80 : 35, 0, Math.PI*2); 
+            ctx.arc(m.x, m.y, m.isBoss ? 80 : 38, 0, Math.PI*2); 
             ctx.fill();
 
-            // Monster Health Bar
+            // Health Bar
             ctx.fillStyle = "black";
-            ctx.fillRect(m.x - 40, m.y - 70, 80, 8);
+            ctx.fillRect(m.x - 40, m.y - 75, 80, 10);
             ctx.fillStyle = "#2ecc71";
-            ctx.fillRect(m.x - 40, m.y - 70, (m.hp / m.maxHp) * 80, 8);
+            ctx.fillRect(m.x - 40, m.y - 75, (m.hp / m.maxHp) * 80, 10);
         }
     });
 
-    // 4. Draw Projectiles
+    // 4. Draw Projectiles (Attacks & Abilities)
     projectiles.forEach(p => {
         if (p.room === me.room) {
             ctx.fillStyle = p.isSpecial ? "white" : "yellow";
             ctx.beginPath(); 
             ctx.arc(p.x, p.y, p.isSpecial ? 15 : 8, 0, Math.PI*2); 
             ctx.fill();
+            
+            // Add a slight glow to special projectiles
+            if (p.isSpecial) {
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = "white";
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
         }
     });
 
-    // 5. Draw All Players in Room
+    // 5. Draw Players
     for (let id in players) {
         let p = players[id];
         if (p.room === me.room) {
             ctx.fillStyle = p.color;
             
-            // Warrior = Square, Archer = Triangle, Mage = Circle
+            // Class-Specific Shapes
             if (p.charClass === 'Warrior') {
                 ctx.fillRect(p.x - 25, p.y - 25, 50, 50);
             } else if (p.charClass === 'Archer') {
                 ctx.beginPath();
-                ctx.moveTo(p.x, p.y - 30);
-                ctx.lineTo(p.x - 25, p.y + 25);
-                ctx.lineTo(p.x + 25, p.y + 25);
+                ctx.moveTo(p.x, p.y - 35);
+                ctx.lineTo(p.x - 30, p.y + 25);
+                ctx.lineTo(p.x + 30, p.y + 25);
                 ctx.closePath();
                 ctx.fill();
-            } else {
+            } else { // Mage
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, 28, 0, Math.PI*2);
+                ctx.arc(p.x, p.y, 30, 0, Math.PI*2);
                 ctx.fill();
             }
             
-            // Player Name
+            // Nameplate
             ctx.fillStyle = "white";
             ctx.textAlign = "center";
-            ctx.font = "bold 20px Arial";
-            ctx.fillText(p.name, p.x, p.y - 45);
+            ctx.font = "bold 22px Arial";
+            ctx.fillText(p.name, p.x, p.y - 50);
         }
     }
 
