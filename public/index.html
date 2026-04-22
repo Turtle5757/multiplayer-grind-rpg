@@ -3,80 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>REALM GRIND MMO</title>
+    <title>REALM GRIND</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <div id="login-screen">
         <div class="login-box">
             <h1>REALM GRIND</h1>
+            <input type="text" id="username" placeholder="Username" maxlength="12">
+            <input type="password" id="password" placeholder="Password">
             
-            <div class="input-group">
-                <input type="text" id="username" placeholder="Username" maxlength="12">
-                <input type="password" id="password" placeholder="Password">
-            </div>
-
-            <p class="select-label">CHOOSE YOUR PATH</p>
+            <p style="margin-top: 15px; color: #aaa;">Select Your Class:</p>
             <div class="class-selector">
-                <button class="class-btn active" onclick="setClass('Warrior')">
-                    WARRIOR
-                    <span class="class-desc">Tank / Melee</span>
-                </button>
-                <button class="class-btn" onclick="setClass('Archer')">
-                    ARCHER
-                    <span class="class-desc">Speed / Ranged</span>
-                </button>
-                <button class="class-btn" onclick="setClass('Mage')">
-                    MAGE
-                    <span class="class-desc">Burst / Magic</span>
-                </button>
+                <button class="class-btn active" onclick="setClass('Warrior')">WARRIOR</button>
+                <button class="class-btn" onclick="setClass('Archer')">ARCHER</button>
+                <button class="class-btn" onclick="setClass('Mage')">MAGE</button>
             </div>
 
-            <button class="start-btn" onclick="startGame()">ENTER REALM</button>
+            <button class="start-btn" onclick="startGame()">ENTER WORLD</button>
         </div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
     <div id="gui" style="display:none;">
-        
         <div class="side-stats">
-            <div class="bar-container">
-                <label>HP</label>
-                <div class="bar-bg">
-                    <div id="hp-fill" class="bar-fill hp" style="width: 100%;"></div>
-                </div>
+            <div class="bar-label">HP</div>
+            <div class="bar-bg">
+                <div id="hp-fill" class="bar-fill hp"></div>
             </div>
 
-            <div class="bar-container">
-                <label>ENERGY</label>
-                <div class="bar-bg">
-                    <div id="energy-fill" class="bar-fill energy" style="width: 100%;"></div>
-                </div>
+            <div class="bar-label">ENERGY</div>
+            <div class="bar-bg">
+                <div id="energy-fill" class="bar-fill energy"></div>
             </div>
             
-            <div class="stats-grid">
-                <div class="stat-row">STR: <span id="str-val">10</span></div>
-                <div class="stat-row">DEF: <span id="def-val">5</span></div>
-                <div class="stat-row">SPD: <span id="spd-val">3</span></div>
-                <div class="stat-row gold">GOLD: <span id="gold-display">0</span></div>
-            </div>
+            <div class="stat-row">STR: <span id="str-val">10</span></div>
+            <div class="stat-row">DEF: <span id="def-val">5</span></div>
+            <div class="stat-row">SPD: <span id="spd-val">3</span></div>
+            <div class="stat-row" style="color: #f1c40f;">GOLD: <span id="gold-display">0</span></div>
             
-            <div id="equip-list">
-                <div class="eq-item" id="equip-weapon">Wep: None</div>
-                <div class="eq-item" id="equip-armor">Arm: None</div>
-                <div class="eq-item" id="equip-boots">Bts: None</div>
+            <div id="equip-info" style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
+                <div class="stat-row" id="equip-weapon" style="color: #00ffcc; font-size: 0.85em;">Wep: None</div>
+                <div class="stat-row" id="equip-armor" style="color: #00ffcc; font-size: 0.85em;">Arm: None</div>
+                <div class="stat-row" id="equip-boots" style="color: #00ffcc; font-size: 0.85em;">Bts: None</div>
             </div>
         </div>
 
         <div id="ability-bar">
             <div class="ability-slot">
-                <div class="key-hint">Q</div>
+                <div class="key-label">Q</div>
                 <div id="q-cd" class="cd-overlay"></div>
             </div>
             <div class="ability-slot">
-                <div class="key-hint">E</div>
+                <div class="key-label">E</div>
                 <div id="e-cd" class="cd-overlay"></div>
             </div>
         </div>
@@ -86,7 +66,7 @@
 
         <div id="chat-container">
             <div id="chat-box"></div>
-            <input type="text" id="chat-input" placeholder="Enter to chat...">
+            <input type="text" id="chat-input" placeholder="Press Enter to chat...">
         </div>
     </div>
 
