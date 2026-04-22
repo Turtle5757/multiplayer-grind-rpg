@@ -26,27 +26,37 @@ const GEAR_TIERS = {
     ]
 };
 
-// --- ROOMS & PORTALS ---
+// --- LINEAR LAYERED DUNGEON ROOMS ---
 const rooms = {
     hub: { name: "Village", bg: "#15220d" },
     shop: { name: "Blacksmith", bg: "#2c3e50" },
-    graveyard: { name: "Graveyard (Lv. 1-10)", bg: "#1a1a1a" },
-    caves: { name: "Deep Caves (Lv. 10-25)", bg: "#0d0d1a" },
-    void: { name: "The Void (Lv. 25+)", bg: "#0a000a" },
+    graveyard: { name: "Graveyard (Level 1)", bg: "#1a1a1a" },
+    caves: { name: "Deep Caves (Level 2)", bg: "#0d0d1a" },
+    void: { name: "The Void (Level 3)", bg: "#0a000a" },
     lair: { name: "Boss Lair", bg: "#2a0033" }
 };
 
+// --- PROGRESSION PORTAL MAP ---
 const portals = [
-    { fromRoom: 'hub', toRoom: 'shop', x: 1700, y: 300, targetX: 1000, targetY: 1800, color: '#f1c40f', label: 'Blacksmith' },
-    { fromRoom: 'hub', toRoom: 'graveyard', x: 1900, y: 1000, targetX: 200, targetY: 1000, color: '#555', label: 'Graveyard (Easy)' },
-    { fromRoom: 'hub', toRoom: 'caves', x: 1000, y: 100, targetX: 1000, targetY: 1800, color: '#3498db', label: 'Caves (Medium)' },
-    { fromRoom: 'hub', toRoom: 'void', x: 1000, y: 1900, targetX: 1000, targetY: 200, color: '#9b59b6', label: 'The Void (Hard)' },
-    { fromRoom: 'shop', toRoom: 'hub', x: 1000, y: 1950, targetX: 1700, targetY: 400, color: '#fff', label: 'Village' },
-    { fromRoom: 'graveyard', toRoom: 'hub', x: 100, y: 1000, targetX: 1750, targetY: 1000, color: '#fff', label: 'Village' },
-    { fromRoom: 'caves', toRoom: 'hub', x: 1000, y: 1950, targetX: 1000, targetY: 300, color: '#fff', label: 'Village' },
-    { fromRoom: 'void', toRoom: 'hub', x: 1000, y: 50, targetX: 1000, targetY: 1700, color: '#fff', label: 'Village' },
+    // Hub connects to Shop and Level 1
+    { fromRoom: 'hub', toRoom: 'shop', x: 1800, y: 200, targetX: 1000, targetY: 1800, color: '#f1c40f', label: 'Blacksmith' },
+    { fromRoom: 'hub', toRoom: 'graveyard', x: 1000, y: 100, targetX: 1000, targetY: 1850, color: '#555', label: 'ENTER DUNGEON' },
+    
+    // Level 1 (Graveyard) -> Level 2 (Caves)
+    { fromRoom: 'graveyard', toRoom: 'hub', x: 1000, y: 1950, targetX: 1000, targetY: 250, color: '#fff', label: 'EXIT TO VILLAGE' },
+    { fromRoom: 'graveyard', toRoom: 'caves', x: 1000, y: 50, targetX: 1000, targetY: 1850, color: '#3498db', label: 'DEEPER (Level 2)' },
+
+    // Level 2 (Caves) -> Level 3 (Void)
+    { fromRoom: 'caves', toRoom: 'graveyard', x: 1000, y: 1950, targetX: 1000, targetY: 200, color: '#fff', label: 'UP (Level 1)' },
+    { fromRoom: 'caves', toRoom: 'void', x: 1000, y: 50, targetX: 1000, targetY: 1850, color: '#9b59b6', label: 'DEEPER (Level 3)' },
+
+    // Level 3 (Void) -> Boss
+    { fromRoom: 'void', toRoom: 'caves', x: 1000, y: 1950, targetX: 1000, targetY: 200, color: '#fff', label: 'UP (Level 2)' },
     { fromRoom: 'void', toRoom: 'lair', x: 1900, y: 1000, targetX: 200, targetY: 1000, color: '#ff0000', label: 'BOSS ENTRANCE' },
-    { fromRoom: 'lair', toRoom: 'hub', x: 100, y: 1000, targetX: 1000, targetY: 1000, color: '#fff', label: 'Escape' }
+
+    // Shop and Boss back to Hub
+    { fromRoom: 'shop', toRoom: 'hub', x: 1000, y: 1950, targetX: 1800, targetY: 350, color: '#fff', label: 'EXIT' },
+    { fromRoom: 'lair', toRoom: 'hub', x: 100, y: 1000, targetX: 1000, targetY: 1000, color: '#fff', label: 'ESCAPE' }
 ];
 
 let players = {};
@@ -68,10 +78,8 @@ io.on('connection', (socket) => {
             name: data.name || "Adventurer",
             charClass: data.charClass,
             x: 1000, y: 1000,
-            hp: 100, maxHp: 100,
-            energy: 100, gold: 0,
-            str: 10, def: 5, spd: 4,
-            room: 'hub',
+            hp: 100, maxHp: 100, energy: 100, gold: 0,
+            str: 10, def: 5, spd: 4, room: 'hub',
             equips: { weapon: "Rusty Sword", armor: "Rags", boots: "Old Boots" },
             mults: { str: 1.0, def: 1.0, spd: 1.0 },
             cooldowns: { Q: 0, E: 0 },
@@ -108,8 +116,7 @@ io.on('connection', (socket) => {
         const p = players[socket.id];
         if (!p || Date.now() < p.cooldowns[key]) return;
 
-        if (key === 'Q') {
-            if (p.energy < 20) return;
+        if (key === 'Q' && p.energy >= 20) {
             let pSpd = 12, pDmg = p.str * p.mults.str, isSpecial = false;
             
             if (p.charClass === 'Warrior') { 
@@ -135,10 +142,9 @@ io.on('connection', (socket) => {
             });
             p.energy -= 20;
         } 
-        else if (key === 'E') {
-            if (p.energy < 40) return;
+        else if (key === 'E' && p.energy >= 40) {
             if (p.charClass === 'Warrior') {
-                p.mults.str = 1.8;
+                p.mults.str = 1.8; // 1.8x Berserk boost
                 setTimeout(() => { if (players[socket.id]) players[socket.id].mults.str = 1.0; }, 5000);
                 p.cooldowns.E = Date.now() + 10000;
             } else if (p.charClass === 'Archer') {
@@ -146,7 +152,7 @@ io.on('connection', (socket) => {
                 p.y += Math.sin(p.angle) * 150;
                 p.cooldowns.E = Date.now() + 4000;
             } else if (p.charClass === 'Mage') {
-                p.hp = Math.min(p.maxHp, p.hp + 60);
+                p.hp = Math.min(p.maxHp, p.hp + 60); // Heal ability
                 p.cooldowns.E = Date.now() + 8000;
             }
             p.energy -= 40;
@@ -157,7 +163,7 @@ io.on('connection', (socket) => {
         const p = players[socket.id];
         if (!p) return;
 
-        // CLICK LIMITER: 250ms (4 clicks per second max)
+        // CLICK LIMITER: 250ms (Prevents spam/broken balancing)
         const now = Date.now();
         if (now - p.lastClick < 250) return;
         p.lastClick = now;
@@ -194,7 +200,7 @@ io.on('connection', (socket) => {
 
 // --- ENGINE LOOPS ---
 setInterval(() => {
-    // Handle Projectiles
+    // Projectiles Movement & Collision
     for (let i = projectiles.length - 1; i >= 0; i--) {
         let pr = projectiles[i];
         pr.x += pr.vx; pr.y += pr.vy;
@@ -219,9 +225,9 @@ setInterval(() => {
         });
     }
 
-    // Handle Player Status & Monster AI
+    // Player Refill & Monster AI Logic
     Object.values(players).forEach(p => {
-        p.energy = Math.min(100, p.energy + 0.5); // Refill energy
+        p.energy = Math.min(100, p.energy + 0.5);
         
         monsters.forEach(m => {
             if (m.isAlive && m.room === p.room) {
@@ -232,7 +238,7 @@ setInterval(() => {
                     m.y += Math.sin(a) * m.spd;
                     
                     if (d < 50 && (!m.lastAtk || Date.now() - m.lastAtk > 1000)) {
-                        // Combat Balance: Monster STR vs Player DEF (1.1x Scaling rule)
+                        // Combat Balance: Monster STR vs Player DEF
                         let damageDealt = Math.max(2, m.str - (p.def * 0.5));
                         p.hp -= damageDealt;
                         m.lastAtk = Date.now();
@@ -241,7 +247,7 @@ setInterval(() => {
                             p.hp = p.maxHp;
                             p.room = 'hub';
                             p.x = 1000; p.y = 1000;
-                            p.gold = Math.floor(p.gold * 0.9); // 10% Gold loss on death
+                            p.gold = Math.floor(p.gold * 0.9); // 10% Gold Penalty
                         }
                     }
                 }
