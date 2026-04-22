@@ -37,25 +37,25 @@ const rooms = {
     lair: { name: "Boss Lair", bg: "#2a0033" }
 };
 
-// --- THE LINEAR PORTAL SYSTEM ---
+// --- PROGRESSION PORTAL MAP (LINEAR) ---
 const portals = [
-    // VILLAGE -> SHOP & LEVEL 1
+    // Village (Hub)
     { fromRoom: 'hub', toRoom: 'shop', x: 1800, y: 200, targetX: 1000, targetY: 1800, color: '#f1c40f', label: 'Blacksmith' },
     { fromRoom: 'hub', toRoom: 'graveyard', x: 1000, y: 100, targetX: 1000, targetY: 1850, color: '#555', label: 'ENTER DUNGEON' },
     
-    // LEVEL 1 (Graveyard) -> HUB or LEVEL 2
+    // Level 1 (Graveyard)
     { fromRoom: 'graveyard', toRoom: 'hub', x: 1000, y: 1950, targetX: 1000, targetY: 250, color: '#fff', label: 'EXIT TO VILLAGE' },
     { fromRoom: 'graveyard', toRoom: 'caves', x: 1000, y: 50, targetX: 1000, targetY: 1850, color: '#3498db', label: 'DEEPER (Level 2)' },
 
-    // LEVEL 2 (Caves) -> LEVEL 1 or LEVEL 3
+    // Level 2 (Caves)
     { fromRoom: 'caves', toRoom: 'graveyard', x: 1000, y: 1950, targetX: 1000, targetY: 200, color: '#fff', label: 'UP (Level 1)' },
     { fromRoom: 'caves', toRoom: 'void', x: 1000, y: 50, targetX: 1000, targetY: 1850, color: '#9b59b6', label: 'DEEPER (Level 3)' },
 
-    // LEVEL 3 (Void) -> LEVEL 2 or BOSS
+    // Level 3 (Void)
     { fromRoom: 'void', toRoom: 'caves', x: 1000, y: 1950, targetX: 1000, targetY: 200, color: '#fff', label: 'UP (Level 2)' },
     { fromRoom: 'void', toRoom: 'lair', x: 1900, y: 1000, targetX: 200, targetY: 1000, color: '#ff0000', label: 'BOSS ENTRANCE' },
 
-    // SHOP & BOSS ESCAPE
+    // Utilities
     { fromRoom: 'shop', toRoom: 'hub', x: 1000, y: 1950, targetX: 1800, targetY: 350, color: '#fff', label: 'EXIT' },
     { fromRoom: 'lair', toRoom: 'hub', x: 100, y: 1000, targetX: 1000, targetY: 1000, color: '#fff', label: 'ESCAPE' }
 ];
@@ -73,8 +73,11 @@ let monsters = [
 ];
 
 io.on('connection', (socket) => {
+    // REGISTER LOGIC
     socket.on('register', (data) => {
+        if (!data.name || !data.password) return socket.emit('authError', 'Missing fields!');
         if (users[data.name]) return socket.emit('authError', 'User already exists!');
+        
         users[data.name] = {
             password: data.password,
             charClass: data.charClass,
@@ -84,10 +87,12 @@ io.on('connection', (socket) => {
         socket.emit('authSuccess', 'Account created! Now login.');
     });
 
+    // LOGIN LOGIC
     socket.on('login', (data) => {
         const user = users[data.name];
         if (!user || user.password !== data.password) return socket.emit('authError', 'Invalid credentials!');
         
+        // Anti-double-login
         for(let id in players) if(players[id].name === data.name) return socket.emit('authError', 'User already logged in!');
 
         players[socket.id] = {
@@ -122,7 +127,6 @@ io.on('connection', (socket) => {
         p.y = Math.max(0, Math.min(p.y, WORLD_SIZE));
         p.angle = data.angle;
 
-        // Portal Detection Logic
         portals.forEach(pt => {
             if (p.room === pt.fromRoom && Math.hypot(p.x - pt.x, p.y - pt.y) < 80) {
                 p.room = pt.toRoom;
@@ -201,12 +205,11 @@ io.on('connection', (socket) => {
 });
 
 setInterval(() => {
-    // Projectile Loop
+    // Projectiles logic
     for (let i = projectiles.length - 1; i >= 0; i--) {
         let pr = projectiles[i];
         pr.x += pr.vx; pr.y += pr.vy;
         if (pr.x < 0 || pr.x > WORLD_SIZE || pr.y < 0 || pr.y > WORLD_SIZE) { projectiles.splice(i, 1); continue; }
-        
         monsters.forEach(m => {
             if (m.isAlive && m.room === pr.room && Math.hypot(pr.x - m.x, pr.y - m.y) < 40) {
                 m.hp -= pr.damage;
@@ -220,7 +223,7 @@ setInterval(() => {
         });
     }
 
-    // Player/Monster Logic
+    // Monster AI & Player Regen
     Object.values(players).forEach(p => {
         p.energy = Math.min(100, p.energy + 0.5);
         monsters.forEach(m => {
@@ -244,4 +247,4 @@ setInterval(() => {
     io.emit('update', { players, monsters, projectiles });
 }, 30);
 
-http.listen(3000, () => console.log('Server Live on 3000'));
+http.listen(3000, () => console.log('Server running on port 3000'));
