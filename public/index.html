@@ -2,27 +2,35 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>RPG - Training & Dungeon</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dungeon Crawler - Training & Combat</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
+
     <div id="login-screen">
         <div class="auth-box">
             <h1>DUNGEON CRAWLER</h1>
             <div id="auth-status"></div>
+            
             <div id="create-view">
-                <input type="text" id="reg-user" placeholder="Username">
+                <h3>Create Your Hero</h3>
+                <input type="text" id="reg-user" placeholder="Username" maxlength="12">
                 <input type="password" id="reg-pass" placeholder="Password">
+                
                 <div class="class-selection">
                     <button class="class-btn active" onclick="setClass('Warrior', event)">Warrior</button>
                     <button class="class-btn" onclick="setClass('Archer', event)">Archer</button>
                     <button class="class-btn" onclick="setClass('Mage', event)">Mage</button>
                 </div>
-                <button class="main-btn" onclick="registerAccount()">Create Hero</button>
+                
+                <button class="main-btn" onclick="registerAccount()">Create Account</button>
                 <p onclick="toggleAuth(false)" class="toggle-link">Already have an account? Login</p>
             </div>
+
             <div id="login-view" style="display: none;">
+                <h3>Welcome Back</h3>
                 <input type="text" id="log-user" placeholder="Username">
                 <input type="password" id="log-pass" placeholder="Password">
                 <button class="main-btn" onclick="loginToAccount()">Enter World</button>
@@ -33,24 +41,44 @@
 
     <div id="gui" style="display: none;">
         <div id="stats-panel">
-            <div class="stat-row">HP: <div class="bar-bg"><div id="hp-fill" class="bar-fill hp"></div></div></div>
-            <div class="stat-row">NRG: <div class="bar-bg"><div id="energy-fill" class="bar-fill energy"></div></div></div>
-            <div class="stat-row gold-text">Gold: <span id="gold-display">0</span></div>
-            <hr>
-            <div class="stat-row">STR: <span id="str-display" class="val">0</span></div>
-            <div class="stat-row">DEF: <span id="def-display" class="val">0</span></div>
-            <div class="stat-row">SPD: <span id="spd-display" class="val">0</span></div>
+            <div class="stat-row">
+                <span class="stat-label">HP</span>
+                <div class="bar-bg"><div id="hp-fill" class="bar-fill hp"></div></div>
+            </div>
+            
+            <div class="stat-row">
+                <span class="stat-label">NRG</span>
+                <div class="bar-bg"><div id="energy-fill" class="bar-fill energy"></div></div>
+            </div>
+            
+            <div id="gold-wrap">GOLD: <span id="gold-display">0</span></div>
+            
+            <hr class="gui-divider">
+            
+            <div class="combat-stats">
+                <div class="stat-line">STR: <span id="str-display" class="stat-val">0</span></div>
+                <div class="stat-line">DEF: <span id="def-display" class="stat-val">0</span></div>
+                <div class="stat-line">SPD: <span id="spd-display" class="stat-val">0</span></div>
+            </div>
         </div>
 
         <div id="ability-bar">
-            <div class="skill-slot"><div class="cd-overlay" id="q-cd"></div>Q</div>
-            <div class="skill-slot"><div class="cd-overlay" id="e-cd"></div>E</div>
+            <div class="skill-slot">
+                <div class="cd-overlay" id="q-cd"></div>
+                <span class="key-label">Q</span>
+            </div>
+            <div class="skill-slot">
+                <div class="cd-overlay" id="e-cd"></div>
+                <span class="key-label">E</span>
+            </div>
         </div>
 
-        <div id="shop-menu" style="display: none;"></div>
+        <div id="shop-menu" style="display: none;">
+            </div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
+
     <script src="script.js"></script>
 </body>
 </html>
