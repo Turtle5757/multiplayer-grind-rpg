@@ -2,206 +2,202 @@ const socket = io();
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
 // --- GAME STATE ---
-let myId = null;
+let me = null;
 let players = {};
 let monsters = [];
 let projectiles = [];
 let rooms = {};
-let portals = []; 
-let isPlaying = false;
+let portals = [];
+window.selectedClass = 'Warrior';
 
-// Viewport / Camera
-let camX = 0;
-let camY = 0;
-let zoom = 0.75; 
-let mousePos = { x: 0, y: 0 };
+// --- WARRIOR VISUALS ---
+let slashEffect = { active: false, timer: 0, angle: 0 };
 
-const WORLD_SIZE = 2000;
+// --- UI ELEMENTS ---
+const gui = document.getElementById('gui');
+const loginScreen = document.getElementById('login-screen');
+const hpFill = document.getElementById('hp-fill');
+const energyFill = document.getElementById('energy-fill');
+const manaFill = document.getElementById('mana-fill');
+const goldDisplay = document.getElementById('gold-display');
+const strDisplay = document.getElementById('str-display');
+const defDisplay = document.getElementById('def-display');
+const spdDisplay = document.getElementById('spd-display');
+
+// --- INPUT HANDLING ---
 const keys = { w: false, a: false, s: false, d: false };
+let mouseAngle = 0;
 
-// --- INITIALIZATION ---
-function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resize);
-resize();
+window.addEventListener('keydown', (e) => {
+    if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true;
+    if (e.key.toLowerCase() === 'q') socket.emit('useAbility', 'Q');
+    if (e.key.toLowerCase() === 'e') socket.emit('useAbility', 'E');
+});
 
+window.addEventListener('keyup', (e) => {
+    if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false;
+});
+
+window.addEventListener('mousemove', (e) => {
+    const dx = e.clientX - canvas.width / 2;
+    const dy = e.clientY - canvas.height / 2;
+    mouseAngle = Math.atan2(dy, dx);
+});
+
+window.addEventListener('mousedown', () => {
+    socket.emit('attack');
+    // Local visual for Warrior
+    if (me && me.charClass === 'Warrior') {
+        slashEffect.active = true;
+        slashEffect.timer = 10;
+        slashEffect.angle = mouseAngle;
+    }
+});
+
+// --- AUTH FUNCTIONS ---
 function setClass(className, event) {
     window.selectedClass = className;
-    const buttons = document.querySelectorAll('.class-btn');
-    buttons.forEach(btn => btn.classList.remove('active'));
-    if (event) event.target.classList.add('active');
-}
+    document.querySelectorAll('.class-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
 
-function registerAccount() {
-    const name = document.getElementById('log-user').value;
-    const pass = document.getElementById('log-pass').value;
-    socket.emit('register', { name, password: pass, charClass: window.selectedClass || 'Warrior' });
+    const title = document.getElementById('class-title');
+    const desc = document.getElementById('class-desc');
+    title.innerText = className.toUpperCase();
+    
+    if (className === 'Warrior') desc.innerText = "Buff: 1.3x Defense. Attack: Melee Cleave. Ability: Rage.";
+    else if (className === 'Archer') desc.innerText = "Buff: 1.3x Speed. Attack: Ranged. Ability: Dash.";
+    else if (className === 'Mage') desc.innerText = "Buff: 1.3x Damage. Attack: Spells. Ability: Heal.";
 }
 
 function loginToAccount() {
-    const name = document.getElementById('log-user').value;
-    const pass = document.getElementById('log-pass').value;
-    socket.emit('login', { name, password: pass });
+    socket.emit('login', { 
+        name: document.getElementById('log-user').value, 
+        pass: document.getElementById('log-pass').value 
+    });
 }
 
-function buyUpgrade(category) {
-    socket.emit('buyItem', category);
+function registerAccount() {
+    socket.emit('register', { 
+        name: document.getElementById('log-user').value, 
+        password: document.getElementById('log-pass').value,
+        charClass: window.selectedClass
+    });
 }
 
-// --- SOCKET EVENTS ---
-socket.on('init', data => {
-    myId = data.id; 
-    rooms = data.rooms; 
-    portals = data.portals; 
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('gui').style.display = 'block';
-    isPlaying = true;
-    requestAnimationFrame(drawLoop);
+// --- NETWORK EVENTS ---
+socket.on('init', (data) => {
+    rooms = data.rooms;
+    portals = data.portals;
+    loginScreen.style.display = 'none';
+    gui.style.display = 'block';
 });
 
-socket.on('update', data => {
-    players = data.players; 
-    monsters = data.monsters; 
+socket.on('update', (data) => {
+    players = data.players;
+    monsters = data.monsters;
     projectiles = data.projectiles;
-    
-    const me = players[myId];
+    me = players[socket.id];
+
     if (me) {
-        // UI Updates
-        document.getElementById('hp-fill').style.width = (me.hp / me.maxHp * 100) + "%";
-        document.getElementById('energy-fill').style.width = me.energy + "%";
-        document.getElementById('gold-display').innerText = Math.floor(me.gold);
-
-        document.getElementById('str-display').innerText = Math.floor(me.str);
-        document.getElementById('def-display').innerText = Math.floor(me.def);
-        document.getElementById('spd-display').innerText = me.spd.toFixed(1);
-
-        document.getElementById('str-mult').innerText = me.mults.str.toFixed(1);
-        document.getElementById('def-mult').innerText = me.mults.def.toFixed(1);
-        document.getElementById('spd-mult').innerText = me.mults.spd.toFixed(1);
-
-        const armorNames = ["Tattered Shirt", "Leather Tunic", "Chainmail", "Plate Armor", "Guardian Shell"];
-        document.getElementById('armor-level').innerText = armorNames[me.gearLevels.armor] || "Max";
-
-        // Combat Status HUD
-        const status = document.getElementById('combat-status');
-        if (me.room === 'graveyard' || me.room === 'boss_room') {
-            status.innerText = "⚔️ COMBAT ZONE (Weapons Active)";
-            status.style.color = "#ff4757";
-        } else {
-            status.innerText = "🛡️ SAFETY ZONE (Peaceful)";
-            status.style.color = "#2ecc71";
-        }
-
-        document.getElementById('shop-ui').style.display = (me.room === 'shop') ? 'block' : 'none';
+        // Update UI
+        hpFill.style.width = (me.hp / me.maxHp * 100) + "%";
+        manaFill.style.width = (me.mana / me.maxMana * 100) + "%";
+        energyFill.style.width = me.energy + "%";
+        goldDisplay.innerText = Math.floor(me.gold);
+        strDisplay.innerText = me.str.toFixed(1);
+        defDisplay.innerText = me.def.toFixed(1);
+        spdDisplay.innerText = me.spd.toFixed(1);
+        
+        document.getElementById('combat-status').innerText = (me.room === 'boss_room' || me.room === 'graveyard') ? "⚠️ COMBAT ZONE" : "🛡️ SAFETY ZONE";
+        document.getElementById('combat-status').style.color = (me.room === 'boss_room') ? "#ff4757" : "#2ecc71";
     }
 });
 
-// --- INPUTS ---
-window.addEventListener('mousemove', e => { mousePos.x = e.clientX; mousePos.y = e.clientY; });
-window.addEventListener('keydown', e => {
-    const k = e.key.toLowerCase();
-    if (keys.hasOwnProperty(k)) keys[k] = true;
-    if (k === 'q' || k === 'e') socket.emit('useAbility', k.toUpperCase());
+socket.on('swingEffect', () => {
+    // Triggered when other warriors swing
 });
-window.addEventListener('keyup', e => {
-    const k = e.key.toLowerCase();
-    if (keys.hasOwnProperty(k)) keys[k] = false;
-});
-canvas.addEventListener('mousedown', () => { if (isPlaying) socket.emit('attack'); });
 
-setInterval(() => {
-    if (isPlaying && players[myId]) {
-        const me = players[myId];
-        const worldX = (mousePos.x / zoom) + camX;
-        const worldY = (mousePos.y / zoom) + camY;
-        const angle = Math.atan2(worldY - me.y, worldX - me.x);
-        socket.emit('move', { keys, angle });
-    }
-}, 30);
+// --- RENDER LOOP ---
+function draw() {
+    if (!me) { requestAnimationFrame(draw); return; }
 
-// --- RENDERING ---
-function drawLoop() {
-    if (!isPlaying || !players[myId]) return requestAnimationFrame(drawLoop);
+    ctx.fillStyle = rooms[me.room].bg || '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const me = players[myId];
-    const vW = canvas.width / zoom;
-    const vH = canvas.height / zoom;
+    const camX = canvas.width / 2 - me.x;
+    const camY = canvas.height / 2 - me.y;
 
-    camX = Math.max(0, Math.min(me.x - vW / 2, WORLD_SIZE - vW));
-    camY = Math.max(0, Math.min(me.y - vH / 2, WORLD_SIZE - vH));
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    ctx.scale(zoom, zoom);
-    ctx.translate(-camX, -camY);
-
-    // Background
-    if (rooms[me.room]) {
-        ctx.fillStyle = rooms[me.room].bg;
-        ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-    }
-
-    // Portals
+    // Draw Portals
     portals.forEach(p => {
         if (p.fromRoom === me.room) {
-            ctx.fillStyle = p.color; ctx.globalAlpha = 0.3;
-            ctx.beginPath(); ctx.arc(p.x, p.y, 85, 0, 7); ctx.fill();
-            ctx.globalAlpha = 1.0; ctx.beginPath(); ctx.arc(p.x, p.y, 45, 0, 7); ctx.fill();
-            ctx.fillStyle = "white"; ctx.textAlign = "center"; ctx.font = "bold 24px Arial";
-            ctx.fillText(p.label, p.x, p.y - 110);
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x + camX, p.y + camY, 40, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "white";
+            ctx.fillText(p.label, p.x + camX - 20, p.y + camY - 50);
         }
     });
 
-    // Monsters & Boss
+    // Draw Monsters
     monsters.forEach(m => {
         if (m.room === me.room && m.isAlive) {
+            ctx.fillStyle = m.isBoss ? "#ff0000" : "#7f8c8d";
+            const size = m.isBoss ? 110 : 30;
+            ctx.beginPath();
+            ctx.arc(m.x + camX, m.y + camY, size, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Boss HP Bar
             if (m.isBoss) {
-                // Boss Visuals
-                ctx.fillStyle = "#ff0000";
-                ctx.beginPath(); ctx.arc(m.x, m.y, 110, 0, 7); ctx.fill();
-                // Boss HP Bar
-                ctx.fillStyle = "#222"; ctx.fillRect(m.x - 150, m.y - 180, 300, 20);
-                ctx.fillStyle = "#ff4757"; ctx.fillRect(m.x - 150, m.y - 180, (m.hp/m.maxHp)*300, 20);
-                ctx.fillStyle = "white"; ctx.font = "bold 28px Arial";
-                ctx.fillText("THE ANCIENT ONE", m.x, m.y - 200);
-            } else {
-                ctx.fillStyle = m.isMinion ? "#ff7f50" : "#c0392b";
-                ctx.beginPath(); ctx.arc(m.x, m.y, m.isMinion ? 25 : 42, 0, 7); ctx.fill();
+                ctx.fillStyle = "black";
+                ctx.fillRect(m.x + camX - 100, m.y + camY - 150, 200, 10);
+                ctx.fillStyle = "red";
+                ctx.fillRect(m.x + camX - 100, m.y + camY - 150, (m.hp / m.maxHp) * 200, 10);
             }
         }
     });
 
-    // Projectiles
-    projectiles.forEach(p => {
-        if (p.room === me.room) {
-            ctx.fillStyle = (p.owner === 'BOSS') ? "#ff0000" : (p.isSpecial ? "white" : "#f1c40f");
-            ctx.beginPath(); ctx.arc(p.x, p.y, (p.owner === 'BOSS') ? 15 : 9, 0, 7); ctx.fill();
+    // Draw Projectiles
+    projectiles.forEach(pr => {
+        if (pr.room === me.room) {
+            ctx.fillStyle = pr.owner === 'BOSS' ? "red" : (pr.isSpecial ? "cyan" : "white");
+            ctx.beginPath();
+            ctx.arc(pr.x + camX, pr.y + camY, pr.isSpecial ? 8 : 4, 0, Math.PI * 2);
+            ctx.fill();
         }
     });
 
-    // Players
-    for (let id in players) {
-        const p = players[id];
+    // Draw Players
+    Object.values(players).forEach(p => {
         if (p.room === me.room) {
             ctx.fillStyle = p.color;
-            if (p.gearLevels.armor >= 3) {
-                ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 4;
-                ctx.beginPath(); ctx.arc(p.x, p.y, 40, 0, 7); ctx.stroke();
-            }
-            if (p.charClass === 'Warrior') ctx.fillRect(p.x - 25, p.y - 25, 50, 50);
-            else if (p.charClass === 'Archer') {
-                ctx.beginPath(); ctx.moveTo(p.x, p.y - 35); ctx.lineTo(p.x - 30, p.y + 25); ctx.lineTo(p.x + 30, p.y + 25); ctx.fill();
-            } else {
-                ctx.beginPath(); ctx.arc(p.x, p.y, 30, 0, 7); ctx.fill();
-            }
-            ctx.fillStyle = "white"; ctx.textAlign = "center"; ctx.font = "bold 20px Arial";
-            ctx.fillText(p.name, p.x, p.y - 55);
+            ctx.beginPath();
+            ctx.arc(p.x + camX, p.y + camY, 25, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "white";
+            ctx.textAlign = "center";
+            ctx.fillText(p.name, p.x + camX, p.y + camY - 35);
         }
+    });
+
+    // Warrior Slash Animation
+    if (slashEffect.active && me.charClass === 'Warrior') {
+        ctx.strokeStyle = "rgba(255, 255, 255, " + (slashEffect.timer / 10) + ")";
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.arc(me.x + camX, me.y + camY, 80, slashEffect.angle - 0.8, slashEffect.angle + 0.8);
+        ctx.stroke();
+        slashEffect.timer--;
+        if (slashEffect.timer <= 0) slashEffect.active = false;
     }
 
-    ctx.restore();
-    requestAnimationFrame(drawLoop);
+    socket.emit('move', { keys, angle: mouseAngle });
+    requestAnimationFrame(draw);
 }
+
+draw();
