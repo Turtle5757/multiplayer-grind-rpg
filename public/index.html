@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Champion Rise | PvP Evolution</title>
+    <title>Champion Rise | Boss Update</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -12,7 +12,7 @@
     <div id="login-screen">
         <div class="auth-box">
             <h1>CHAMPION RISE</h1>
-            <p>Evolve your gear. Dominate the Graveyard.</p>
+            <p>Train your stats. Slay the Ancient One.</p>
             
             <div class="class-selector">
                 <button class="class-btn active" onclick="setClass('Warrior', event)">Warrior</button>
@@ -45,38 +45,40 @@
             </div>
 
             <div class="stat-row">
-                <span>STR: <b id="str-display">10</b><small>x<span id="str-mult">1.0</span></small></span>
-                <span>DEF: <b id="def-display">5</b><small>x<span id="def-mult">1.0</span></small></span>
-                <span>SPD: <b id="spd-display">4.0</b><small>x<span id="spd-mult">1.0</span></small></span>
+                <span>STR: <b id="str-display">10</b> <small>x<span id="str-mult">1.0</span></small></span>
+                <span>DEF: <b id="def-display">5</b> <small>x<span id="def-mult">1.0</span></small></span>
+                <span>SPD: <b id="spd-display">4.0</b> <small>x<span id="spd-mult">1.0</span></small></span>
             </div>
 
-            <div class="equip-row">
+            <div class="equip-row" style="margin-top: 10px; font-size: 13px; color: #f1c40f;">
                 🛡️ ARMOR: <span id="armor-level">Tattered Shirt</span>
             </div>
-            <div id="combat-status" style="font-size: 10px; margin-top: 10px; color: #ff4757; font-weight: bold; text-transform: uppercase;">
-                ⚠️ Safety Zone (Weapons Disabled)
+
+            <div id="combat-status" style="font-size: 11px; margin-top: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
+                🛡️ SAFETY ZONE
             </div>
         </div>
 
         <div class="gold-counter">💰 <span id="gold-display">0</span></div>
 
         <div id="shop-ui" class="shop-overlay" style="display: none;">
-            <h3>THE FORGE</h3>
-            <p>Upgrade your equipment to train faster!</p>
+            <h3 style="color: #f1c40f; margin-top: 0;">THE FORGE</h3>
+            <p style="font-size: 12px; color: #bbb;">Better gear grants massive training multipliers!</p>
             <div class="shop-buttons">
                 <button onclick="buyUpgrade('sword')">
-                    🗡️ Upgrade Weapon<br>
-                    <small style="color: #f1c40f;">Cost: 150g+</small>
+                    🗡️ WEAPON<br>
+                    <small>150g+</small>
                 </button>
                 <button onclick="buyUpgrade('armor')">
-                    🛡️ Upgrade Armor<br>
-                    <small style="color: #f1c40f;">Cost: 300g+</small>
+                    🛡️ ARMOR<br>
+                    <small>300g+</small>
                 </button>
                 <button onclick="buyUpgrade('boots')">
-                    👟 Upgrade Boots<br>
-                    <small style="color: #f1c40f;">Cost: 200g+</small>
+                    👟 BOOTS<br>
+                    <small>200g+</small>
                 </button>
             </div>
+            <p style="font-size: 10px; margin-top: 15px; color: #888;">Press a portal to exit the shop.</p>
         </div>
 
         <div class="ability-bar">
@@ -92,6 +94,7 @@
     </div>
 
     <canvas id="gameCanvas"></canvas>
+
     <script src="script.js"></script>
 </body>
 </html>
