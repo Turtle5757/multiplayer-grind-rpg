@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Champion Rise | Multiplayer RPG</title>
+    <title>Champion Rise | PvP Evolution</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -12,7 +12,7 @@
     <div id="login-screen">
         <div class="auth-box">
             <h1>CHAMPION RISE</h1>
-            <p>Select a class and secure your progress</p>
+            <p>Evolve your character and dominate the realm</p>
             
             <div class="class-selector">
                 <button class="class-btn active" onclick="setClass('Warrior', event)">Warrior</button>
@@ -30,10 +30,9 @@
                 <button class="secondary-btn" onclick="registerAccount()">REGISTER</button>
             </div>
             
-            <div class="controls-hint">
-                <b>WASD</b> to Move World<br>
-                <b>MOUSE CLICK</b> to Attack / Train<br>
-                <b>Q & E</b> for Special Abilities
+            <div class="controls-hint" style="margin-top: 25px; font-size: 12px; color: #555;">
+                <b>WASD</b> to Move • <b>CLICK</b> to Attack/Train<br>
+                <b>Q & E</b> for Abilities • <b>PvP ENABLED</b>
             </div>
         </div>
     </div>
@@ -50,19 +49,28 @@
 
             <div class="bar-wrapper">
                 <div class="bar-label">STAMINA (ENERGY)</div>
-                <div class="bar-bg energy">
+                <div class="bar-bg">
                     <div id="energy-fill"></div>
                 </div>
             </div>
 
             <div class="stat-row">
-                <span>STR: <b id="str-display">10</b></span>
-                <span>DEF: <b id="def-display">5</b></span>
-                <span>SPD: <b id="spd-display">4.0</b></span>
+                <span>
+                    STR: <b id="str-display">10</b>
+                    <small>x<span id="str-mult">1.0</span> Bonus</small>
+                </span>
+                <span>
+                    DEF: <b id="def-display">5</b>
+                    <small>x<span id="def-mult">1.0</span> Bonus</small>
+                </span>
+                <span>
+                    SPD: <b id="spd-display">4.0</b>
+                    <small>x<span id="spd-mult">1.0</span> Bonus</small>
+                </span>
             </div>
 
             <div class="equip-row">
-                🛡️ ARMOR: <span id="armor-level">Tattered Rags</span>
+                🛡️ GEAR TIER: <span id="armor-level">Novice</span>
             </div>
         </div>
 
@@ -72,11 +80,11 @@
 
         <div id="shop-ui" class="shop-overlay" style="display: none;">
             <h3>THE FORGE</h3>
-            <p>Upgrade costs 100 Gold</p>
+            <p>Upgrade to increase your training multipliers</p>
             <div class="shop-buttons">
-                <button onclick="buyUpgrade('str')">Sharpen Blade (+STR)</button>
-                <button onclick="buyUpgrade('def')">Forge Plates (+DEF)</button>
-                <button onclick="buyUpgrade('spd')">Lighten Gear (+SPD)</button>
+                <button onclick="buyUpgrade('str')">Heavy Weights (+STR Multi)</button>
+                <button onclick="buyUpgrade('def')">Reinforce Armor (+DEF Multi)</button>
+                <button onclick="buyUpgrade('spd')">Lighter Boots (+SPD Multi)</button>
             </div>
         </div>
 
