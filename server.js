@@ -8,12 +8,12 @@ app.use(express.static('public'));
 // --- CONFIGURATION ---
 const WORLD_SIZE = 2000;
 const TICK_RATE = 30;
-const PVP_ZONE = 'graveyard'; // PvP Only happens here
+const PVP_ZONE = 'graveyard'; 
 
-// --- PERSISTENT DATA ---
+// --- DATABASE (In-Memory for now) ---
 const users = {}; 
 
-// --- UPGRADE TIER DATA ---
+// --- TIERED GEAR DATA ---
 const GEAR_DATA = {
     sword: { stat: 'str', tiers: [
         { name: "Wooden Stick", mult: 1.0, cost: 0 },
@@ -45,7 +45,7 @@ const rooms = {
     lake: { name: "Swift Lake (SPD)", bg: "#1a3a4a" },
     shrine: { name: "Meditation Shrine (DEF)", bg: "#1b2e2b" },
     shop: { name: "Blacksmith's Forge", bg: "#2c3e50" },
-    graveyard: { name: "Graveyard (PvP)", bg: "#1a1a1a" }
+    graveyard: { name: "Graveyard (Dungeon)", bg: "#1a1a1a" }
 };
 
 const PORTALS = [
@@ -53,7 +53,7 @@ const PORTALS = [
     { fromRoom: 'hub', toRoom: 'lake', x: 1900, y: 1000, targetX: 1800, targetY: 1000, color: '#3498db', label: 'LAKE' },
     { fromRoom: 'hub', toRoom: 'shrine', x: 1000, y: 100, targetX: 1000, targetY: 1800, color: '#2ecc71', label: 'SHRINE' },
     { fromRoom: 'hub', toRoom: 'shop', x: 1000, y: 1900, targetX: 1000, targetY: 200, color: '#f1c40f', label: 'BLACKSMITH' },
-    { fromRoom: 'hub', toRoom: 'graveyard', x: 1800, y: 200, targetX: 1000, targetY: 1850, color: '#555', label: 'PVP ZONE' },
+    { fromRoom: 'hub', toRoom: 'graveyard', x: 1800, y: 200, targetX: 1000, targetY: 1850, color: '#555', label: 'DUNGEON' },
     
     { fromRoom: 'gym', toRoom: 'hub', x: 1900, y: 1000, targetX: 250, targetY: 1000, color: '#fff', label: 'EXIT' },
     { fromRoom: 'lake', toRoom: 'hub', x: 1900, y: 1000, targetX: 1750, targetY: 1000, color: '#fff', label: 'EXIT' },
@@ -62,18 +62,16 @@ const PORTALS = [
     { fromRoom: 'graveyard', toRoom: 'hub', x: 1000, y: 1950, targetX: 1700, targetY: 350, color: '#fff', label: 'EXIT' }
 ];
 
-// --- ENTITIES ---
 let players = {};
 let projectiles = [];
 let monsters = [
-    { id: 1, x: 400, y: 400, hp: 150, maxHp: 150, str: 20, gold: 60, room: 'graveyard', isAlive: true, spd: 2.2 },
-    { id: 2, x: 1600, y: 1600, hp: 150, maxHp: 150, str: 20, gold: 60, room: 'graveyard', isAlive: true, spd: 2.2 },
-    { id: 3, x: 1000, y: 1000, hp: 500, maxHp: 500, str: 50, gold: 500, room: 'graveyard', isAlive: true, spd: 1.2 }
+    { id: 1, x: 500, y: 500, hp: 200, maxHp: 200, str: 25, gold: 80, room: 'graveyard', isAlive: true, spd: 2 },
+    { id: 2, x: 1500, y: 500, hp: 200, maxHp: 200, str: 25, gold: 80, room: 'graveyard', isAlive: true, spd: 2 },
+    { id: 3, x: 1000, y: 1000, hp: 800, maxHp: 800, str: 60, gold: 1000, room: 'graveyard', isAlive: true, spd: 1.5 }
 ];
 
 function respawn(p) { p.hp = 100; p.room = 'hub'; p.x = 1000; p.y = 1000; }
 
-// --- SOCKET LOGIC ---
 io.on('connection', (socket) => {
     socket.on('register', (data) => {
         if (!users[data.name]) {
@@ -124,7 +122,10 @@ io.on('connection', (socket) => {
 
     socket.on('attack', () => {
         const p = players[socket.id]; if (!p) return;
-        if (p.room === 'gym') p.str += 0.05;
+
+        // COMBAT RESTRICTION: Only in Graveyard
+        if (p.room !== PVP_ZONE) return; 
+
         if (Date.now() - (p.lastAtk || 0) < 350) return;
         p.lastAtk = Date.now();
         projectiles.push({ 
@@ -137,17 +138,22 @@ io.on('connection', (socket) => {
         const p = players[socket.id]; if (!p || p.room !== 'shop') return;
         let nextLvl = p.gearLevels[category] + 1;
         let data = GEAR_DATA[category];
-        if (nextLvl >= data.tiers.length) return socket.emit('authError', 'MAX TIER!');
-        if (p.gold >= data.tiers[nextLvl].cost) {
-            p.gold -= data.tiers[nextLvl].cost;
+        
+        if (nextLvl >= data.tiers.length) return socket.emit('authError', 'Item is Max Level!');
+        
+        const nextTier = data.tiers[nextLvl];
+        if (p.gold >= nextTier.cost) {
+            p.gold -= nextTier.cost;
             p.gearLevels[category] = nextLvl;
-            p.mults[data.stat] = data.tiers[nextLvl].mult;
-            socket.emit('notification', `Purchased ${data.tiers[nextLvl].name}!`);
-        } else socket.emit('authError', `Need ${data.tiers[nextLvl].cost} Gold!`);
+            p.mults[data.stat] = nextTier.mult;
+            socket.emit('notification', `Upgraded to ${nextTier.name}!`);
+        } else {
+            socket.emit('authError', `Need ${nextTier.cost} Gold!`);
+        }
     });
 
     socket.on('useAbility', (key) => {
-        const p = players[socket.id]; if (!p || Date.now() < p.cooldowns[key]) return;
+        const p = players[socket.id]; if (!p || Date.now() < p.cooldowns[key] || p.room !== PVP_ZONE) return;
         if (key === 'Q' && p.energy >= 20) {
             projectiles.push({ x: p.x, y: p.y, vx: Math.cos(p.angle)*22, vy: Math.sin(p.angle)*22, owner: socket.id, room: p.room, damage: p.str*2.5, isSpecial: true });
             p.energy -= 20; p.cooldowns.Q = Date.now() + 2000;
@@ -172,6 +178,8 @@ io.on('connection', (socket) => {
 setInterval(() => {
     Object.values(players).forEach(p => {
         p.energy = Math.min(100, p.energy + 0.5);
+        // Training logic
+        if (p.room === 'gym') p.str += 0.05; 
         if (p.room === 'lake' && (p.keys.w||p.keys.a||p.keys.s||p.keys.d)) p.spd += 0.001; 
         if (p.room === 'shrine' && !(p.keys.w||p.keys.a||p.keys.s||p.keys.d)) p.def += 0.02;
 
@@ -193,6 +201,7 @@ setInterval(() => {
     for (let i = projectiles.length - 1; i >= 0; i--) {
         let pr = projectiles[i]; pr.x += pr.vx; pr.y += pr.vy;
         
+        // Monster Hits
         monsters.forEach(m => {
             if (m.isAlive && m.room === pr.room && Math.hypot(pr.x - m.x, pr.y - m.y) < 50) {
                 m.hp -= pr.damage; projectiles.splice(i, 1);
@@ -203,7 +212,7 @@ setInterval(() => {
             }
         });
 
-        // PVP ZONE RESTRICTED
+        // Player Hits (PvP)
         if (pr && projectiles[i] && pr.room === PVP_ZONE) {
             for (let id in players) {
                 let target = players[id];
@@ -211,7 +220,7 @@ setInterval(() => {
                     target.hp -= Math.max(5, pr.damage - (target.def * target.mults.def * 0.5));
                     if (target.hp <= 0) {
                         if (players[pr.owner]) {
-                            let stolen = Math.floor(target.gold * 0.20);
+                            let stolen = Math.floor(target.gold * 0.20); // Steal 20%
                             players[pr.owner].gold += stolen; target.gold -= stolen;
                         }
                         respawn(target);
