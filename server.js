@@ -67,7 +67,11 @@ let projectiles = [];
 let monsters = [
     { id: 1, x: 500, y: 500, hp: 200, maxHp: 200, str: 25, gold: 30, room: 'graveyard', isAlive: true, spd: 2 },
     { id: 2, x: 1500, y: 500, hp: 200, maxHp: 200, str: 25, gold: 30, room: 'graveyard', isAlive: true, spd: 2 },
-    { id: 'BOSS', x: 1000, y: 1000, hp: 5000, maxHp: 5000, str: 100, gold: 5000, room: 'boss_room', isAlive: true, spd: 1, isBoss: true, lastRingAtk: 0, lastSpawnAtk: 0 }
+    { 
+        id: 'BOSS', x: 1000, y: 1000, hp: 5000, maxHp: 5000, str: 100, gold: 1500, 
+        room: 'boss_room', isAlive: true, spd: 1.5, isBoss: true, 
+        lastRingAtk: 0, lastSpawnAtk: 0 
+    }
 ];
 
 function respawn(p) { p.hp = 100; p.room = 'hub'; p.x = 1000; p.y = 1000; }
@@ -121,7 +125,7 @@ io.on('connection', (socket) => {
     socket.on('attack', () => {
         const p = players[socket.id]; if (!p) return;
         if (p.room !== PVP_ZONE && p.room !== BOSS_ZONE) return; 
-        if (Date.now() - (p.lastAtk || 0) < 350) return;
+        if (now - (p.lastAtk || 0) < 350) return;
         p.lastAtk = Date.now();
         projectiles.push({ x: p.x, y: p.y, vx: Math.cos(p.angle)*16, vy: Math.sin(p.angle)*16, owner: socket.id, room: p.room, damage: p.str * p.mults.str * p.buffs.str });
     });
@@ -161,9 +165,10 @@ io.on('connection', (socket) => {
     });
 });
 
+let now = Date.now();
 // --- GAME LOOP ---
 setInterval(() => {
-    const now = Date.now();
+    now = Date.now();
     Object.values(players).forEach(p => {
         p.energy = Math.min(100, p.energy + 0.5);
         if (p.room === 'gym') p.str += 0.05; 
@@ -172,34 +177,57 @@ setInterval(() => {
 
         monsters.forEach(m => {
             if (!m.isAlive || m.room !== p.room) return;
-            if (m.isBoss) {
-                // Fixed Ring Attack (Spawn outside hitbox)
-                if (now - m.lastRingAtk > 3000) {
-                    for (let i = 0; i < 12; i++) {
-                        let a = (i / 12) * Math.PI * 2;
-                        projectiles.push({ 
-                            x: m.x + Math.cos(a)*120, 
-                            y: m.y + Math.sin(a)*120, 
-                            vx: Math.cos(a)*8, 
-                            vy: Math.sin(a)*8, 
-                            owner: 'BOSS', 
-                            room: m.room, 
-                            damage: 40 
-                        });
-                    }
-                    m.lastRingAtk = now;
-                }
-                if (now - m.lastSpawnAtk > 10000) {
-                    monsters.push({ id: now, x: m.x + (Math.random()*200-100), y: m.y + 200, hp: 100, maxHp: 100, str: 15, gold: 10, room: BOSS_ZONE, isAlive: true, spd: 3, isMinion: true });
-                    m.lastSpawnAtk = now;
-                }
-            }
+            
             let d = Math.hypot(p.x - m.x, p.y - m.y);
-            if (d < 600) {
+            let aggroRange = m.isBoss ? 9999 : 600; // GLOBAL AGGRO for Boss
+
+            if (d < aggroRange) {
                 let a = Math.atan2(p.y - m.y, p.x - m.x);
-                m.x += Math.cos(a)*m.spd; m.y += Math.sin(a)*m.spd;
+                
+                // --- PHASE LOGIC: Scaling Difficulty ---
+                let speedMult = 1.0;
+                let attackRateMult = 1.0;
+
+                if (m.isBoss) {
+                    const hpPercent = m.hp / m.maxHp;
+                    if (hpPercent < 0.25) { 
+                        speedMult = 2.6; attackRateMult = 2.2; 
+                    } else if (hpPercent < 0.50) { 
+                        speedMult = 1.8; attackRateMult = 1.5; 
+                    }
+                }
+
+                m.x += Math.cos(a) * (m.spd * speedMult);
+                m.y += Math.sin(a) * (m.spd * speedMult);
+
+                if (m.isBoss) {
+                    // Fast Ring Attack
+                    if (now - m.lastRingAtk > (3000 / attackRateMult)) {
+                        for (let i = 0; i < 12; i++) {
+                            let angle = (i / 12) * Math.PI * 2;
+                            projectiles.push({ 
+                                x: m.x + Math.cos(angle)*120, y: m.y + Math.sin(angle)*120, 
+                                vx: Math.cos(angle)*8, vy: Math.sin(angle)*8, 
+                                owner: 'BOSS', room: m.room, damage: 40 
+                            });
+                        }
+                        m.lastRingAtk = now;
+                    }
+                    // Fast Minion Spawn
+                    if (now - m.lastSpawnAtk > (10000 / attackRateMult)) {
+                        monsters.push({ 
+                            id: now, x: m.x + (Math.random()*200-100), y: m.y + 200, 
+                            hp: 100, maxHp: 100, str: 15, gold: 10, room: BOSS_ZONE, 
+                            isAlive: true, spd: 3, isMinion: true 
+                        });
+                        m.lastSpawnAtk = now;
+                    }
+                }
+
+                // Contact Damage
                 if (d < 60 && now - (m.lastAtk || 0) > 1000) {
-                    p.hp -= Math.max(5, m.str - (p.def * p.mults.def * 0.5)); m.lastAtk = now;
+                    p.hp -= Math.max(5, m.str - (p.def * p.mults.def * 0.5));
+                    m.lastAtk = now;
                     if (p.hp <= 0) respawn(p);
                 }
             }
@@ -210,10 +238,8 @@ setInterval(() => {
         let pr = projectiles[i]; pr.x += pr.vx; pr.y += pr.vy;
         
         monsters.forEach(m => {
-            // FIX: Prevent boss/monsters from hitting themselves
-            if (pr.owner === 'BOSS') return;
-
-            if (m.isAlive && m.room === pr.room && Math.hypot(pr.x - m.x, pr.y - m.y) < 60) {
+            if (pr.owner === 'BOSS') return; // Boss can't hit himself or minions
+            if (m.isAlive && m.room === pr.room && Math.hypot(pr.x - m.x, pr.y - m.y) < 65) {
                 m.hp -= pr.damage; 
                 if (projectiles[i]) projectiles.splice(i, 1);
                 if (m.hp <= 0) {
@@ -224,11 +250,9 @@ setInterval(() => {
             }
         });
 
-        // Player Collision
         if (pr && projectiles[i]) {
             for (let id in players) {
                 let target = players[id];
-                // Only allow boss projectiles to hit players, or players to hit each other in PvP
                 if (id !== pr.owner && target.room === pr.room && Math.hypot(pr.x - target.x, pr.y - target.y) < 40) {
                     target.hp -= Math.max(5, pr.damage - (target.def * target.mults.def * 0.5));
                     if (target.hp <= 0) {
