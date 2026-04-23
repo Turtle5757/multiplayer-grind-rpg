@@ -1,211 +1,155 @@
-/* --- RESET & CORE --- */
-body, html {
+/* --- BASE STYLES --- */
+body {
     margin: 0;
     padding: 0;
     overflow: hidden;
-    background: #050505;
+    background: #000;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: #eee;
-    user-select: none;
+    color: white;
 }
 
-canvas {
+#gameCanvas {
     display: block;
 }
 
-/* --- LOGIN / REGISTER SCREEN --- */
+/* --- AUTH / LOGIN SCREEN --- */
 #login-screen {
     position: absolute;
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(circle at center, #1a1a2e 0%, #000 100%);
+    inset: 0;
+    background: linear-gradient(135deg, #1a1a1a 0%, #000 100%);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 100;
 }
 
 .auth-box {
-    background: #0f0f1b;
+    background: rgba(44, 62, 80, 0.9);
     padding: 40px;
-    border-radius: 20px;
-    border: 1px solid #30336b;
+    border-radius: 15px;
     text-align: center;
-    width: 420px;
-    box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
-}
-
-h1 {
-    margin: 0 0 10px;
-    letter-spacing: 8px;
-    color: #e67e22;
-    font-size: 36px;
-    text-shadow: 0 0 10px rgba(230, 126, 34, 0.5);
+    border: 2px solid #f1c40f;
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
 }
 
 .class-selector {
     display: flex;
     gap: 10px;
-    margin: 25px 0;
+    margin: 20px 0;
 }
 
 .class-btn {
     flex: 1;
-    padding: 14px;
-    background: #130f40;
-    border: 1px solid #30336b;
-    color: #999;
+    padding: 10px;
+    background: #34495e;
+    border: none;
+    color: white;
     cursor: pointer;
-    border-radius: 8px;
-    font-weight: bold;
-    transition: 0.3s;
+    border-radius: 5px;
 }
 
 .class-btn.active {
-    background: #e67e22;
-    color: white;
-    border-color: #ffbe76;
-    box-shadow: 0 0 15px rgba(230, 126, 34, 0.4);
+    background: #f1c40f;
+    color: #000;
+    font-weight: bold;
 }
 
-input {
-    width: 100%;
-    padding: 15px;
-    box-sizing: border-box;
-    background: #000;
-    border: 1px solid #30336b;
-    color: white;
-    margin-bottom: 12px;
-    border-radius: 8px;
-    font-size: 16px;
-    outline: none;
-}
-
-input:focus { border-color: #e67e22; }
-
-.auth-buttons { display: flex; gap: 15px; margin-top: 10px; }
-
-.primary-btn {
-    flex: 1; padding: 16px; background: #27ae60; border: none;
-    color: white; font-weight: bold; border-radius: 8px; cursor: pointer;
-}
-
-.secondary-btn {
-    flex: 1; padding: 16px; background: #535c68; border: none;
-    color: white; font-weight: bold; border-radius: 8px; cursor: pointer;
-}
-
-.primary-btn:hover { background: #2ecc71; }
-
-/* --- GAME HUD --- */
+/* --- HUD & BARS --- */
 #gui {
     position: absolute;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
+    inset: 0;
+    pointer-events: none; /* Allows clicking the canvas behind UI */
 }
 
 .stats-container {
     position: absolute;
     top: 20px;
     left: 20px;
-    width: 300px;
-    background: rgba(10, 10, 20, 0.9);
-    padding: 20px;
-    border-radius: 15px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(8px);
+    width: 250px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 15px;
+    border-radius: 10px;
+    pointer-events: auto;
 }
 
-/* Bars */
-.bar-wrapper { margin-bottom: 15px; }
-.bar-label { font-size: 10px; font-weight: bold; color: #777; letter-spacing: 2px; margin-bottom: 5px; }
+.bar-wrapper {
+    margin-bottom: 10px;
+}
+
+.bar-label {
+    font-size: 10px;
+    font-weight: bold;
+    margin-bottom: 3px;
+}
 
 .bar-bg {
-    width: 100%; height: 12px; background: #111;
-    border-radius: 6px; overflow: hidden; border: 1px solid #222;
+    width: 100%;
+    height: 12px;
+    background: #333;
+    border-radius: 6px;
+    overflow: hidden;
 }
 
-#hp-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #d35400, #e74c3c); transition: 0.3s; }
-#energy-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #2980b9, #3498db); transition: 0.1s; }
+#hp-fill { width: 100%; height: 100%; background: #ff4757; transition: width 0.3s; }
+#energy-fill { width: 100%; height: 100%; background: #1e90ff; transition: width 0.3s; }
 
-/* Stats Row */
 .stat-row {
     display: flex;
     justify-content: space-between;
-    font-size: 13px;
-    margin-top: 15px;
-    font-weight: 600;
+    font-size: 14px;
+    margin-top: 10px;
 }
 
-.stat-row span b { color: #f39c12; }
-
-/* Multiplier Styling */
 .stat-row small {
-    display: block;
-    font-size: 10px;
-    color: #2ecc71; /* Green for bonuses */
-    margin-top: 2px;
-}
-
-/* Gear / Equipment */
-.equip-row {
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px solid #333;
-    font-size: 12px;
-    font-weight: bold;
     color: #f1c40f;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    margin-left: 4px;
 }
 
-#armor-level { color: #fff; float: right; }
-
-/* Currency */
 .gold-counter {
     position: absolute;
     top: 20px;
-    right: 25px;
-    font-size: 28px;
-    font-weight: 800;
+    right: 20px;
+    font-size: 24px;
+    font-weight: bold;
     color: #f1c40f;
-    text-shadow: 2px 2px 0px #000;
+    text-shadow: 2px 2px #000;
 }
 
-/* --- BLACKSMITH / SHOP UI --- */
+/* --- SHOP OVERLAY --- */
 .shop-overlay {
     position: absolute;
     top: 50%;
-    right: 30px;
-    transform: translateY(-50%);
-    background: rgba(15, 15, 15, 0.95);
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(20, 20, 20, 0.95);
     padding: 30px;
-    border: 2px solid #f1c40f;
-    border-radius: 15px;
-    width: 240px;
+    border-radius: 20px;
+    border: 3px solid #f1c40f;
     text-align: center;
     pointer-events: auto;
-    box-shadow: 0 0 30px rgba(241, 196, 15, 0.2);
 }
 
-.shop-overlay h3 { color: #f1c40f; margin: 0 0 10px; letter-spacing: 2px; }
-.shop-overlay p { font-size: 11px; color: #666; margin-bottom: 20px; }
+.shop-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+}
 
 .shop-buttons button {
-    display: block;
-    width: 100%;
-    margin: 10px 0;
-    padding: 12px;
-    background: #f1c40f;
-    border: none;
-    font-weight: bold;
-    border-radius: 6px;
+    padding: 15px;
+    background: #34495e;
+    border: 2px solid #555;
+    color: white;
+    border-radius: 10px;
     cursor: pointer;
     transition: 0.2s;
 }
 
-.shop-buttons button:hover { background: #fff; transform: scale(1.03); }
+.shop-buttons button:hover {
+    background: #f1c40f;
+    color: black;
+    border-color: white;
+}
 
 /* --- ABILITY BAR --- */
 .ability-bar {
@@ -215,28 +159,32 @@ input:focus { border-color: #e67e22; }
     transform: translateX(-50%);
     display: flex;
     gap: 15px;
+    pointer-events: auto;
 }
 
 .ability-slot {
-    width: 60px; height: 60px;
+    width: 60px;
+    height: 60px;
     background: rgba(0, 0, 0, 0.8);
-    border: 2px solid #444;
-    border-radius: 12px;
+    border: 2px solid #555;
     position: relative;
-    overflow: hidden;
+    border-radius: 8px;
 }
 
 .key-bind {
     position: absolute;
-    bottom: 3px; right: 5px;
-    font-size: 12px; font-weight: 900;
-    color: #e67e22; z-index: 10;
+    bottom: 2px;
+    right: 5px;
+    font-size: 12px;
+    color: #888;
 }
 
 .cd-overlay {
     position: absolute;
-    bottom: 0; width: 100%; height: 0%;
-    background: rgba(0, 0, 0, 0.7);
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0%;
+    background: rgba(255, 255, 255, 0.3);
     transition: height 0.1s linear;
-    z-index: 5;
 }
