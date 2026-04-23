@@ -28,7 +28,7 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// --- AUTH UI ---
+// --- AUTHENTICATION ---
 function setClass(c, event) {
     window.selectedClass = c;
     document.querySelectorAll('.class-btn').forEach(b => b.classList.remove('active'));
@@ -48,7 +48,7 @@ socket.on('init', d => {
     rooms = d.rooms; 
     portals = d.portals; 
     
-    // Hide login, show HUD
+    // UI Transitions
     const loginScreen = document.getElementById('login-screen');
     const gui = document.getElementById('gui');
     if(loginScreen) loginScreen.style.display = 'none';
@@ -65,7 +65,7 @@ socket.on('update', d => {
     
     const me = players[myId];
     if (me) {
-        // Update HUD
+        // Update Stats HUD
         const hpFill = document.getElementById('hp-fill');
         const energyFill = document.getElementById('energy-fill');
         const goldDisplay = document.getElementById('gold-display');
@@ -74,7 +74,7 @@ socket.on('update', d => {
         if(energyFill) energyFill.style.width = me.energy + "%";
         if(goldDisplay) goldDisplay.innerText = Math.floor(me.gold);
         
-        // Update Stats
+        // Update Training Stats
         const strDisp = document.getElementById('str-display');
         const defDisp = document.getElementById('def-display');
         const spdDisp = document.getElementById('spd-display');
@@ -83,7 +83,7 @@ socket.on('update', d => {
         if(defDisp) defDisp.innerText = Math.floor(me.def);
         if(spdDisp) spdDisp.innerText = me.spd.toFixed(1);
 
-        // Cooldowns
+        // Ability Cooldown Visuals
         let now = Date.now();
         ['Q', 'E'].forEach(k => {
             const cdFill = document.getElementById(`${k.toLowerCase()}-cd`);
@@ -103,7 +103,9 @@ window.addEventListener('mousemove', e => {
 
 window.addEventListener('keydown', e => {
     let k = e.key.toLowerCase();
+    // Q/E for special abilities
     if (k === 'q' || k === 'e') socket.emit('useAbility', k.toUpperCase());
+    // Movement keys
     if (keys.hasOwnProperty(k)) keys[k] = true;
 });
 
@@ -116,10 +118,11 @@ canvas.addEventListener('mousedown', () => {
     if (isPlaying) socket.emit('attack'); 
 });
 
-// Network Sync (30 FPS)
+// Movement Sync (30 FPS)
 setInterval(() => {
     if (isPlaying && players[myId]) {
         const me = players[myId];
+        // Translate screen mouse to world mouse for aiming
         const worldMouseX = (mousePos.x / zoom) + camX;
         const worldMouseY = (mousePos.y / zoom) + camY;
         const angle = Math.atan2(worldMouseY - me.y, worldMouseX - me.x);
@@ -138,7 +141,7 @@ function draw() {
     const vw = canvas.width / zoom;
     const vh = canvas.height / zoom;
 
-    // Camera follow with clamping
+    // Smooth Camera Following with Edge Clamping
     camX = Math.max(0, Math.min(me.x - vw / 2, WORLD_SIZE - vw));
     camY = Math.max(0, Math.min(me.y - vh / 2, WORLD_SIZE - vh));
 
@@ -148,13 +151,13 @@ function draw() {
     ctx.scale(zoom, zoom);
     ctx.translate(-camX, -camY);
 
-    // 1. Draw Background
+    // 1. Draw Map Background
     if (rooms[me.room]) {
         ctx.fillStyle = rooms[me.room].bg;
         ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
     }
 
-    // 2. Draw Portals
+    // 2. Draw Training/Dungeon Portals
     portals.forEach(pt => {
         if (pt.fromRoom === me.room) {
             ctx.fillStyle = pt.color;
@@ -182,6 +185,12 @@ function draw() {
             ctx.beginPath(); 
             ctx.arc(m.x, m.y, 38, 0, Math.PI * 2); 
             ctx.fill();
+
+            // Monster HP Bar
+            ctx.fillStyle = "black";
+            ctx.fillRect(m.x - 30, m.y - 55, 60, 6);
+            ctx.fillStyle = "#2ecc71";
+            ctx.fillRect(m.x - 30, m.y - 55, (m.hp / m.maxHp) * 60, 6);
         }
     });
 
@@ -201,22 +210,23 @@ function draw() {
         if (p.room === me.room) {
             ctx.fillStyle = p.color;
             
-            // Shapes for Classes
+            // Render Class-Specific Shapes
             if (p.charClass === 'Warrior') {
-                ctx.fillRect(p.x - 25, p.y - 25, 50, 50);
+                ctx.fillRect(p.x - 25, p.y - 25, 50, 50); // SQUARE
             } else if (p.charClass === 'Archer') {
-                ctx.beginPath();
+                ctx.beginPath(); // TRIANGLE
                 ctx.moveTo(p.x, p.y - 35);
                 ctx.lineTo(p.x - 30, p.y + 25);
                 ctx.lineTo(p.x + 30, p.y + 25);
                 ctx.closePath();
                 ctx.fill();
-            } else { // Mage
-                ctx.beginPath();
+            } else if (p.charClass === 'Mage') {
+                ctx.beginPath(); // CIRCLE
                 ctx.arc(p.x, p.y, 30, 0, Math.PI * 2);
                 ctx.fill();
             }
             
+            // Player Name and Health Indicator (Simplified)
             ctx.fillStyle = "white";
             ctx.textAlign = "center";
             ctx.font = "bold 22px Arial";
