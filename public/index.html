@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multiplayer RPG - Progress Build</title>
+    <title>Champion Rise | Multiplayer RPG</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -12,7 +12,7 @@
     <div id="login-screen">
         <div class="auth-box">
             <h1>CHAMPION RISE</h1>
-            <p>Choose your class and secure your account</p>
+            <p>Select a class and secure your progress</p>
             
             <div class="class-selector">
                 <button class="class-btn active" onclick="setClass('Warrior', event)">Warrior</button>
@@ -21,18 +21,19 @@
             </div>
 
             <div class="input-group">
-                <input type="text" id="log-user" placeholder="Username" maxlength="12">
+                <input type="text" id="log-user" placeholder="Username" maxlength="12" spellcheck="false">
                 <input type="password" id="log-pass" placeholder="Password">
             </div>
 
             <div class="auth-buttons">
                 <button class="primary-btn" onclick="loginToAccount()">LOG IN</button>
-                <button class="secondary-btn" onclick="registerAccount()">REGISTER NEW</button>
+                <button class="secondary-btn" onclick="registerAccount()">REGISTER</button>
             </div>
             
             <div class="controls-hint">
-                <span><b>WASD</b> to Move</span> | <span><b>Click</b> to Attack/Train</span><br>
-                <span><b>Q / E</b> for Abilities</span>
+                <b>WASD</b> to Move World<br>
+                <b>MOUSE CLICK</b> to Attack / Train<br>
+                <b>Q & E</b> for Special Abilities
             </div>
         </div>
     </div>
@@ -41,17 +42,27 @@
         
         <div class="stats-container">
             <div class="bar-wrapper">
-                <div class="bar-label">HP</div>
-                <div class="bar-bg"><div id="hp-fill"></div></div>
+                <div class="bar-label">VITALITY (HP)</div>
+                <div class="bar-bg">
+                    <div id="hp-fill"></div>
+                </div>
             </div>
+
             <div class="bar-wrapper">
-                <div class="bar-label">ENERGY</div>
-                <div class="bar-bg energy"><div id="energy-fill"></div></div>
+                <div class="bar-label">STAMINA (ENERGY)</div>
+                <div class="bar-bg energy">
+                    <div id="energy-fill"></div>
+                </div>
             </div>
+
             <div class="stat-row">
-                <span>STR: <b id="str-display">0</b></span>
-                <span>DEF: <b id="def-display">0</b></span>
-                <span>SPD: <b id="spd-display">0</b></span>
+                <span>STR: <b id="str-display">10</b></span>
+                <span>DEF: <b id="def-display">5</b></span>
+                <span>SPD: <b id="spd-display">4.0</b></span>
+            </div>
+
+            <div class="equip-row">
+                🛡️ ARMOR: <span id="armor-level">Tattered Rags</span>
             </div>
         </div>
 
@@ -60,12 +71,12 @@
         </div>
 
         <div id="shop-ui" class="shop-overlay" style="display: none;">
-            <h3>BLACKSMITH</h3>
-            <p>100 Gold per Upgrade</p>
+            <h3>THE FORGE</h3>
+            <p>Upgrade costs 100 Gold</p>
             <div class="shop-buttons">
-                <button onclick="buyUpgrade('str')">+10% STR</button>
-                <button onclick="buyUpgrade('def')">+10% DEF</button>
-                <button onclick="buyUpgrade('spd')">+10% SPD</button>
+                <button onclick="buyUpgrade('str')">Sharpen Blade (+STR)</button>
+                <button onclick="buyUpgrade('def')">Forge Plates (+DEF)</button>
+                <button onclick="buyUpgrade('spd')">Lighten Gear (+SPD)</button>
             </div>
         </div>
 
@@ -74,11 +85,13 @@
                 <div class="key-bind">Q</div>
                 <div id="q-cd" class="cd-overlay"></div>
             </div>
+            
             <div class="ability-slot">
                 <div class="key-bind">E</div>
                 <div id="e-cd" class="cd-overlay"></div>
             </div>
         </div>
+
     </div>
 
     <canvas id="gameCanvas"></canvas>
