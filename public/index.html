@@ -53,17 +53,29 @@
             <div class="equip-row">
                 🛡️ ARMOR: <span id="armor-level">Tattered Shirt</span>
             </div>
+            <div id="combat-status" style="font-size: 10px; margin-top: 10px; color: #ff4757; font-weight: bold; text-transform: uppercase;">
+                ⚠️ Safety Zone (Weapons Disabled)
+            </div>
         </div>
 
         <div class="gold-counter">💰 <span id="gold-display">0</span></div>
 
         <div id="shop-ui" class="shop-overlay" style="display: none;">
             <h3>THE FORGE</h3>
-            <p>Buy better gear to boost training gains!</p>
+            <p>Upgrade your equipment to train faster!</p>
             <div class="shop-buttons">
-                <button onclick="buyUpgrade('sword')">🗡️ Upgrade Sword</button>
-                <button onclick="buyUpgrade('armor')">🛡️ Upgrade Armor</button>
-                <button onclick="buyUpgrade('boots')">👟 Upgrade Boots</button>
+                <button onclick="buyUpgrade('sword')">
+                    🗡️ Upgrade Weapon<br>
+                    <small style="color: #f1c40f;">Cost: 150g+</small>
+                </button>
+                <button onclick="buyUpgrade('armor')">
+                    🛡️ Upgrade Armor<br>
+                    <small style="color: #f1c40f;">Cost: 300g+</small>
+                </button>
+                <button onclick="buyUpgrade('boots')">
+                    👟 Upgrade Boots<br>
+                    <small style="color: #f1c40f;">Cost: 200g+</small>
+                </button>
             </div>
         </div>
 
