@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multiplayer RPG - Dev Build</title>
+    <title>Multiplayer RPG - Stable Build</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -12,7 +12,7 @@
     <div id="login-screen">
         <div class="auth-box">
             <h1>CHAMPION RISE</h1>
-            <p>Choose your path to begin training</p>
+            <p>Select your class to enter the world</p>
             
             <div class="class-selector">
                 <button class="class-btn active" onclick="setClass('Warrior', event)">Warrior</button>
@@ -20,30 +20,37 @@
                 <button class="class-btn" onclick="setClass('Mage', event)">Mage</button>
             </div>
 
-            <input type="text" id="log-user" placeholder="Enter Hero Name..." maxlength="12">
+            <input type="text" id="log-user" placeholder="Your Hero Name..." maxlength="12">
             <button class="primary-btn" onclick="loginToAccount()">ENTER WORLD</button>
             
             <div class="controls-hint">
                 <span><b>WASD</b> to Move</span> | <span><b>Click</b> to Attack/Train</span><br>
-                <span><b>Q / E</b> for Abilities</span>
+                <span><b>Q / E</b> for Special Abilities</span>
             </div>
         </div>
     </div>
 
     <div id="gui" style="display: none;">
+        
         <div class="stats-container">
             <div class="bar-wrapper">
-                <div class="bar-label">HP</div>
-                <div class="bar-bg"><div id="hp-fill"></div></div>
+                <div class="bar-label">HEALTH</div>
+                <div class="bar-bg">
+                    <div id="hp-fill"></div>
+                </div>
             </div>
+            
             <div class="bar-wrapper">
-                <div class="bar-label">NRG</div>
-                <div class="bar-bg energy"><div id="energy-fill"></div></div>
+                <div class="bar-label">ENERGY</div>
+                <div class="bar-bg energy">
+                    <div id="energy-fill"></div>
+                </div>
             </div>
+
             <div class="stat-row">
-                <span>STR: <b id="str-display">0</b></span>
-                <span>DEF: <b id="def-display">0</b></span>
-                <span>SPD: <b id="spd-display">0</b></span>
+                <span>STR: <b id="str-display">10</b></span>
+                <span>DEF: <b id="def-display">5</b></span>
+                <span>SPD: <b id="spd-display">4.0</b></span>
             </div>
         </div>
 
@@ -52,14 +59,14 @@
         </div>
 
         <div class="ability-bar">
-            <div class="ability-slot">
+            <div class="ability-slot" id="slot-q">
                 <div class="key-bind">Q</div>
                 <div id="q-cd" class="cd-overlay"></div>
-            </div>
-            <div class="ability-slot">
+                </div>
+            <div class="ability-slot" id="slot-e">
                 <div class="key-bind">E</div>
                 <div id="e-cd" class="cd-overlay"></div>
-            </div>
+                </div>
         </div>
     </div>
 
