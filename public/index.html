@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Champion Rise | Boss Update</title>
+    <title>Champion Rise | Classes & Mana</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -12,12 +12,17 @@
     <div id="login-screen">
         <div class="auth-box">
             <h1>CHAMPION RISE</h1>
-            <p>Train your stats. Slay the Ancient One.</p>
             
+            <p style="font-size: 12px; color: #888; margin-bottom: 15px;">Select your destiny:</p>
             <div class="class-selector">
                 <button class="class-btn active" onclick="setClass('Warrior', event)">Warrior</button>
                 <button class="class-btn" onclick="setClass('Archer', event)">Archer</button>
                 <button class="class-btn" onclick="setClass('Mage', event)">Mage</button>
+            </div>
+
+            <div id="class-info-box" style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; color: #ddd; border: 1px solid #333;">
+                <b id="class-title" style="color: #f1c40f; letter-spacing: 1px;">WARRIOR</b><br>
+                <span id="class-desc" style="display: block; margin-top: 5px;">Buff: 1.3x Defense & 2x Str Training. Attack: Melee. Ability: Rage.</span>
             </div>
 
             <div class="input-group">
@@ -39,22 +44,24 @@
                 <div class="bar-label">VITALITY (HP)</div>
                 <div class="bar-bg"><div id="hp-fill"></div></div>
             </div>
+
+            <div class="bar-wrapper">
+                <div class="bar-label">MANA (MP)</div>
+                <div class="bar-bg" style="border-color: #5d54a4;"><div id="mana-fill" style="background: linear-gradient(to right, #6c5ce7, #a29bfe);"></div></div>
+            </div>
+
             <div class="bar-wrapper">
                 <div class="bar-label">STAMINA (ENERGY)</div>
                 <div class="bar-bg"><div id="energy-fill"></div></div>
             </div>
 
             <div class="stat-row">
-                <span>STR: <b id="str-display">10</b> <small>x<span id="str-mult">1.0</span></small></span>
-                <span>DEF: <b id="def-display">5</b> <small>x<span id="def-mult">1.0</span></small></span>
-                <span>SPD: <b id="spd-display">4.0</b> <small>x<span id="spd-mult">1.0</span></small></span>
+                <span>STR: <b id="str-display">10</b></span>
+                <span>DEF: <b id="def-display">5</b></span>
+                <span>SPD: <b id="spd-display">4.0</b></span>
             </div>
 
-            <div class="equip-row" style="margin-top: 10px; font-size: 13px; color: #f1c40f;">
-                🛡️ ARMOR: <span id="armor-level">Tattered Shirt</span>
-            </div>
-
-            <div id="combat-status" style="font-size: 11px; margin-top: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
+            <div id="combat-status" style="font-size: 11px; margin-top: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; text-align: center;">
                 🛡️ SAFETY ZONE
             </div>
         </div>
@@ -63,32 +70,24 @@
 
         <div id="shop-ui" class="shop-overlay" style="display: none;">
             <h3 style="color: #f1c40f; margin-top: 0;">THE FORGE</h3>
-            <p style="font-size: 12px; color: #bbb;">Better gear grants massive training multipliers!</p>
             <div class="shop-buttons">
-                <button onclick="buyUpgrade('sword')">
-                    🗡️ WEAPON<br>
-                    <small>150g+</small>
-                </button>
-                <button onclick="buyUpgrade('armor')">
-                    🛡️ ARMOR<br>
-                    <small>300g+</small>
-                </button>
-                <button onclick="buyUpgrade('boots')">
-                    👟 BOOTS<br>
-                    <small>200g+</small>
-                </button>
+                <button onclick="buyUpgrade('sword')">🗡️ WEAPON<br><small>Stat: STR</small></button>
+                <button onclick="buyUpgrade('armor')">🛡️ ARMOR<br><small>Stat: DEF</small></button>
+                <button onclick="buyUpgrade('boots')">👟 BOOTS<br><small>Stat: SPD</small></button>
             </div>
-            <p style="font-size: 10px; margin-top: 15px; color: #888;">Press a portal to exit the shop.</p>
+            <p style="font-size: 10px; margin-top: 15px; color: #888;">Step away from the portal to close.</p>
         </div>
 
         <div class="ability-bar">
             <div class="ability-slot">
                 <div class="key-bind">Q</div>
                 <div id="q-cd" class="cd-overlay"></div>
+                <span style="position:absolute; bottom:2px; width:100; text-align:center; font-size:9px; color:cyan;">BLAST</span>
             </div>
             <div class="ability-slot">
                 <div class="key-bind">E</div>
                 <div id="e-cd" class="cd-overlay"></div>
+                <span style="position:absolute; bottom:2px; width:100; text-align:center; font-size:9px; color:pink;">ULT</span>
             </div>
         </div>
     </div>
