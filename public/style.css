@@ -3,7 +3,7 @@ body, html {
     padding: 0;
     overflow: hidden;
     background: #000;
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: white;
     user-select: none;
 }
@@ -27,180 +27,206 @@ canvas {
 .auth-box {
     background: #111;
     padding: 40px;
-    border-radius: 15px;
+    border-radius: 12px;
     border: 2px solid #333;
     text-align: center;
     width: 380px;
     box-shadow: 0 0 50px rgba(0,0,0,0.8);
 }
 
-h1 { 
-    margin-top: 0; 
-    letter-spacing: 4px; 
-    color: #e67e22; 
-    text-transform: uppercase;
-    font-size: 28px;
-}
+h1 { margin: 0; letter-spacing: 4px; color: #e67e22; text-transform: uppercase; }
 
 .class-selector {
     display: flex;
     gap: 10px;
-    margin: 25px 0;
+    margin: 20px 0;
 }
 
 .class-btn {
     flex: 1;
-    padding: 12px;
+    padding: 10px;
     background: #222;
     border: 1px solid #444;
-    color: #777;
+    color: #888;
     cursor: pointer;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    font-weight: bold;
+    border-radius: 4px;
+    transition: 0.2s;
 }
 
 .class-btn.active {
     background: #e67e22;
     color: white;
+    font-weight: bold;
     border-color: #ff9f43;
-    box-shadow: 0 0 15px rgba(230, 126, 34, 0.4);
+}
+
+.input-group {
+    margin-bottom: 20px;
 }
 
 input {
     width: 100%;
-    padding: 14px;
+    padding: 12px;
     box-sizing: border-box;
-    background: #050505;
+    background: #000;
     border: 1px solid #333;
     color: white;
-    margin-bottom: 20px;
-    border-radius: 6px;
+    margin-bottom: 10px;
+    border-radius: 4px;
     font-size: 16px;
     outline: none;
 }
 
 input:focus { border-color: #e67e22; }
 
+.auth-buttons {
+    display: flex;
+    gap: 10px;
+}
+
 .primary-btn {
-    width: 100%;
-    padding: 16px;
+    flex: 1;
+    padding: 15px;
     background: #27ae60;
     border: none;
     color: white;
     font-weight: bold;
     cursor: pointer;
-    border-radius: 6px;
-    font-size: 18px;
-    transition: background 0.2s;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+.secondary-btn {
+    flex: 1;
+    padding: 15px;
+    background: #34495e;
+    border: none;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 16px;
 }
 
 .primary-btn:hover { background: #2ecc71; }
+.secondary-btn:hover { background: #486581; }
 
 .controls-hint {
-    margin-top: 30px;
-    font-size: 13px;
+    margin-top: 25px;
+    font-size: 12px;
     color: #555;
-    line-height: 1.8;
+    line-height: 1.6;
 }
 
-/* --- HUD / GUI ELEMENTS --- */
+/* --- HUD / GUI --- */
 #gui {
     position: absolute;
     width: 100%;
     height: 100%;
     pointer-events: none;
-    z-index: 10;
 }
 
 .stats-container {
     position: absolute;
-    top: 25px;
-    left: 25px;
-    width: 280px;
-    background: rgba(0,0,0,0.75);
-    padding: 18px;
-    border-radius: 12px;
+    top: 20px;
+    left: 20px;
+    width: 260px;
+    background: rgba(0,0,0,0.7);
+    padding: 15px;
+    border-radius: 8px;
     border: 1px solid rgba(255,255,255,0.1);
-    backdrop-filter: blur(5px);
 }
 
-.bar-wrapper { margin-bottom: 10px; }
-.bar-label { font-size: 11px; font-weight: bold; margin-bottom: 4px; color: #aaa; letter-spacing: 1px; }
+.bar-wrapper { margin-bottom: 8px; }
+.bar-label { font-size: 10px; font-weight: bold; margin-bottom: 2px; color: #aaa; }
 
 .bar-bg {
     width: 100%;
-    height: 14px;
-    background: #2c0000;
-    border-radius: 7px;
+    height: 12px;
+    background: #300;
+    border-radius: 6px;
     overflow: hidden;
-    border: 1px solid rgba(0,0,0,0.5);
 }
 
-#hp-fill { 
-    width: 100%; 
-    height: 100%; 
-    background: linear-gradient(90deg, #c0392b, #ff4757); 
-    transition: width 0.3s ease-out; 
-}
+#hp-fill { width: 100%; height: 100%; background: #ff4757; transition: width 0.3s; }
 
-.bar-bg.energy { background: #00002c; }
-#energy-fill { 
-    width: 100%; 
-    height: 100%; 
-    background: linear-gradient(90deg, #2980b9, #3742fa); 
-    transition: width 0.1s linear; 
-}
+.bar-bg.energy { background: #003; }
+#energy-fill { width: 100%; height: 100%; background: #3742fa; transition: width 0.1s; }
 
 .stat-row {
     display: flex;
     justify-content: space-between;
-    font-size: 15px;
-    margin-top: 15px;
-    color: #eee;
+    font-size: 14px;
+    margin-top: 10px;
     font-weight: bold;
 }
-
-.stat-row b { color: #e67e22; }
 
 .gold-counter {
     position: absolute;
-    top: 25px;
-    right: 25px;
-    font-size: 26px;
+    top: 20px;
+    right: 20px;
+    font-size: 24px;
     font-weight: bold;
     color: #f1c40f;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-    background: rgba(0,0,0,0.5);
-    padding: 5px 15px;
-    border-radius: 20px;
+    text-shadow: 2px 2px #000;
 }
 
-/* --- ABILITY SLOTS --- */
+/* --- BLACKSMITH SHOP --- */
+.shop-overlay {
+    position: absolute;
+    top: 50%;
+    right: 50px;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    padding: 25px;
+    border: 2px solid #f1c40f;
+    border-radius: 12px;
+    text-align: center;
+    pointer-events: auto; /* Enable clicks here */
+    width: 200px;
+}
+
+.shop-overlay h3 { margin-top: 0; color: #f1c40f; }
+
+.shop-buttons button {
+    display: block;
+    width: 100%;
+    margin: 10px 0;
+    padding: 12px;
+    background: #f1c40f;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: 0.2s;
+}
+
+.shop-buttons button:hover { background: #fff; transform: scale(1.05); }
+
+/* --- ABILITY BAR --- */
 .ability-bar {
     position: absolute;
-    bottom: 40px;
+    bottom: 30px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 20px;
+    gap: 15px;
 }
 
 .ability-slot {
-    width: 65px;
-    height: 65px;
-    background: rgba(20, 20, 20, 0.9);
-    border: 2px solid #444;
+    width: 60px;
+    height: 60px;
+    background: rgba(30, 30, 30, 0.9);
+    border: 2px solid #555;
     position: relative;
-    border-radius: 10px;
+    border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
 }
 
 .key-bind {
     position: absolute;
-    bottom: 4px;
-    right: 6px;
+    bottom: 2px;
+    right: 5px;
     font-size: 12px;
     font-weight: bold;
     color: #e67e22;
@@ -212,6 +238,6 @@ input:focus { border-color: #e67e22; }
     bottom: 0;
     width: 100%;
     height: 0%;
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.75);
     transition: height 0.1s linear;
 }
