@@ -8,21 +8,35 @@ app.use(express.static('public'));
 // --- CONFIGURATION ---
 const WORLD_SIZE = 2000;
 const TICK_RATE = 30;
+const PVP_ZONE = 'graveyard'; // PvP Only happens here
 
-// --- PERSISTENT DATABASE ---
+// --- PERSISTENT DATA ---
 const users = {}; 
 
 // --- UPGRADE TIER DATA ---
-const UPGRADE_TIERS = [
-    { name: "Novice", mult: 1.0 },
-    { name: "Apprentice", mult: 1.1 },
-    { name: "Hardened", mult: 1.2 },
-    { name: "Elite", mult: 1.3 },
-    { name: "Master", mult: 1.4 },
-    { name: "Grandmaster", mult: 1.6 },
-    { name: "Legendary", mult: 1.8 },
-    { name: "Mythic", mult: 2.2 }
-];
+const GEAR_DATA = {
+    sword: { stat: 'str', tiers: [
+        { name: "Wooden Stick", mult: 1.0, cost: 0 },
+        { name: "Rusty Dagger", mult: 1.2, cost: 150 },
+        { name: "Iron Broadsword", mult: 1.5, cost: 500 },
+        { name: "Diamond Blade", mult: 2.0, cost: 1200 },
+        { name: "Dragon Slayer", mult: 3.0, cost: 5000 }
+    ]},
+    boots: { stat: 'spd', tiers: [
+        { name: "Old Rags", mult: 1.0, cost: 0 },
+        { name: "Leather Sandals", mult: 1.1, cost: 200 },
+        { name: "Reinforced Boots", mult: 1.3, cost: 600 },
+        { name: "Swift Greaves", mult: 1.6, cost: 1500 },
+        { name: "Hermes' Wings", mult: 2.2, cost: 4500 }
+    ]},
+    armor: { stat: 'def', tiers: [
+        { name: "Tattered Shirt", mult: 1.0, cost: 0 },
+        { name: "Leather Tunic", mult: 1.2, cost: 300 },
+        { name: "Chainmail", mult: 1.5, cost: 800 },
+        { name: "Plate Armor", mult: 2.0, cost: 2000 },
+        { name: "Guardian Shell", mult: 3.5, cost: 6000 }
+    ]}
+};
 
 // --- WORLD SETUP ---
 const rooms = {
@@ -31,7 +45,7 @@ const rooms = {
     lake: { name: "Swift Lake (SPD)", bg: "#1a3a4a" },
     shrine: { name: "Meditation Shrine (DEF)", bg: "#1b2e2b" },
     shop: { name: "Blacksmith's Forge", bg: "#2c3e50" },
-    graveyard: { name: "Graveyard", bg: "#1a1a1a" }
+    graveyard: { name: "Graveyard (PvP)", bg: "#1a1a1a" }
 };
 
 const PORTALS = [
@@ -39,7 +53,7 @@ const PORTALS = [
     { fromRoom: 'hub', toRoom: 'lake', x: 1900, y: 1000, targetX: 1800, targetY: 1000, color: '#3498db', label: 'LAKE' },
     { fromRoom: 'hub', toRoom: 'shrine', x: 1000, y: 100, targetX: 1000, targetY: 1800, color: '#2ecc71', label: 'SHRINE' },
     { fromRoom: 'hub', toRoom: 'shop', x: 1000, y: 1900, targetX: 1000, targetY: 200, color: '#f1c40f', label: 'BLACKSMITH' },
-    { fromRoom: 'hub', toRoom: 'graveyard', x: 1800, y: 200, targetX: 1000, targetY: 1850, color: '#555', label: 'DUNGEON' },
+    { fromRoom: 'hub', toRoom: 'graveyard', x: 1800, y: 200, targetX: 1000, targetY: 1850, color: '#555', label: 'PVP ZONE' },
     
     { fromRoom: 'gym', toRoom: 'hub', x: 1900, y: 1000, targetX: 250, targetY: 1000, color: '#fff', label: 'EXIT' },
     { fromRoom: 'lake', toRoom: 'hub', x: 1900, y: 1000, targetX: 1750, targetY: 1000, color: '#fff', label: 'EXIT' },
@@ -57,25 +71,19 @@ let monsters = [
     { id: 3, x: 1000, y: 1000, hp: 500, maxHp: 500, str: 50, gold: 500, room: 'graveyard', isAlive: true, spd: 1.2 }
 ];
 
-// --- HELPER FUNCTIONS ---
-function respawn(p) {
-    p.hp = 100; p.room = 'hub'; p.x = 1000; p.y = 1000;
-}
+function respawn(p) { p.hp = 100; p.room = 'hub'; p.x = 1000; p.y = 1000; }
 
-// --- SOCKET CONNECTION ---
+// --- SOCKET LOGIC ---
 io.on('connection', (socket) => {
-
     socket.on('register', (data) => {
         if (!users[data.name]) {
             users[data.name] = { 
                 password: data.password, charClass: data.charClass || 'Warrior',
                 str: 10, def: 5, spd: 4, gold: 0, 
-                upgradeTiers: { str: 0, def: 0, spd: 0 } 
+                gearLevels: { sword: 0, armor: 0, boots: 0 } 
             };
-            socket.emit('authMessage', 'Account Registered!');
-        } else {
-            socket.emit('authError', 'User exists.');
-        }
+            socket.emit('authMessage', 'Registered!');
+        } else socket.emit('authError', 'User exists.');
     });
 
     socket.on('login', (data) => {
@@ -85,20 +93,18 @@ io.on('connection', (socket) => {
                 id: socket.id, name: data.name, charClass: u.charClass,
                 x: 1000, y: 1000, hp: 100, maxHp: 100, energy: 100, room: 'hub',
                 str: u.str, def: u.def, spd: u.spd, gold: u.gold,
-                upgradeTiers: u.upgradeTiers || { str: 0, def: 0, spd: 0 },
+                gearLevels: u.gearLevels,
                 mults: { 
-                    str: UPGRADE_TIERS[u.upgradeTiers?.str || 0].mult, 
-                    def: UPGRADE_TIERS[u.upgradeTiers?.def || 0].mult, 
-                    spd: UPGRADE_TIERS[u.upgradeTiers?.spd || 0].mult 
+                    str: GEAR_DATA.sword.tiers[u.gearLevels.sword].mult,
+                    def: GEAR_DATA.armor.tiers[u.gearLevels.armor].mult,
+                    spd: GEAR_DATA.boots.tiers[u.gearLevels.boots].mult
                 },
                 buffs: { str: 1.0 }, cooldowns: { Q: 0, E: 0 },
                 keys: { w: false, a: false, s: false, d: false }, angle: 0,
                 color: u.charClass === 'Warrior' ? '#e67e22' : (u.charClass === 'Archer' ? '#2ecc71' : '#9b59b6')
             };
             socket.emit('init', { id: socket.id, rooms, portals: PORTALS });
-        } else {
-            socket.emit('authError', 'Invalid Login.');
-        }
+        } else socket.emit('authError', 'Invalid Login.');
     });
 
     socket.on('move', (data) => {
@@ -127,20 +133,17 @@ io.on('connection', (socket) => {
         });
     });
 
-    socket.on('buyItem', (stat) => {
+    socket.on('buyItem', (category) => {
         const p = players[socket.id]; if (!p || p.room !== 'shop') return;
-        let nextTier = p.upgradeTiers[stat] + 1;
-        if (nextTier >= UPGRADE_TIERS.length) return socket.emit('authError', 'MAX TIER!');
-        
-        let cost = 100 * nextTier;
-        if (p.gold >= cost) {
-            p.gold -= cost;
-            p.upgradeTiers[stat] = nextTier;
-            p.mults[stat] = UPGRADE_TIERS[nextTier].mult;
-            socket.emit('notification', `Upgraded to ${UPGRADE_TIERS[nextTier].name}!`);
-        } else {
-            socket.emit('authError', `Need ${cost} Gold!`);
-        }
+        let nextLvl = p.gearLevels[category] + 1;
+        let data = GEAR_DATA[category];
+        if (nextLvl >= data.tiers.length) return socket.emit('authError', 'MAX TIER!');
+        if (p.gold >= data.tiers[nextLvl].cost) {
+            p.gold -= data.tiers[nextLvl].cost;
+            p.gearLevels[category] = nextLvl;
+            p.mults[data.stat] = data.tiers[nextLvl].mult;
+            socket.emit('notification', `Purchased ${data.tiers[nextLvl].name}!`);
+        } else socket.emit('authError', `Need ${data.tiers[nextLvl].cost} Gold!`);
     });
 
     socket.on('useAbility', (key) => {
@@ -159,19 +162,18 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         const p = players[socket.id];
         if (p) {
-            users[p.name] = { ...users[p.name], str: p.str, def: p.def, spd: p.spd, gold: p.gold, upgradeTiers: p.upgradeTiers };
+            users[p.name] = { ...users[p.name], str: p.str, def: p.def, spd: p.spd, gold: p.gold, gearLevels: p.gearLevels };
             delete players[socket.id];
         }
     });
 });
 
-// --- GAME ENGINE ---
+// --- GAME LOOP ---
 setInterval(() => {
     Object.values(players).forEach(p => {
         p.energy = Math.min(100, p.energy + 0.5);
-        const moving = p.keys.w || p.keys.a || p.keys.s || p.keys.d;
-        if (p.room === 'lake' && moving) p.spd += 0.001; 
-        if (p.room === 'shrine' && !moving) p.def += 0.02;
+        if (p.room === 'lake' && (p.keys.w||p.keys.a||p.keys.s||p.keys.d)) p.spd += 0.001; 
+        if (p.room === 'shrine' && !(p.keys.w||p.keys.a||p.keys.s||p.keys.d)) p.def += 0.02;
 
         monsters.forEach(m => {
             if (m.isAlive && m.room === p.room) {
@@ -191,7 +193,6 @@ setInterval(() => {
     for (let i = projectiles.length - 1; i >= 0; i--) {
         let pr = projectiles[i]; pr.x += pr.vx; pr.y += pr.vy;
         
-        // Monster Hits
         monsters.forEach(m => {
             if (m.isAlive && m.room === pr.room && Math.hypot(pr.x - m.x, pr.y - m.y) < 50) {
                 m.hp -= pr.damage; projectiles.splice(i, 1);
@@ -202,15 +203,15 @@ setInterval(() => {
             }
         });
 
-        // PvP Hits + Stealing
-        if (pr && projectiles[i]) {
+        // PVP ZONE RESTRICTED
+        if (pr && projectiles[i] && pr.room === PVP_ZONE) {
             for (let id in players) {
                 let target = players[id];
-                if (id !== pr.owner && target.room === pr.room && Math.hypot(pr.x - target.x, pr.y - target.y) < 40) {
+                if (id !== pr.owner && target.room === PVP_ZONE && Math.hypot(pr.x - target.x, pr.y - target.y) < 40) {
                     target.hp -= Math.max(5, pr.damage - (target.def * target.mults.def * 0.5));
                     if (target.hp <= 0) {
                         if (players[pr.owner]) {
-                            let stolen = Math.floor(target.gold * 0.20); // 20% Steal
+                            let stolen = Math.floor(target.gold * 0.20);
                             players[pr.owner].gold += stolen; target.gold -= stolen;
                         }
                         respawn(target);
@@ -224,4 +225,4 @@ setInterval(() => {
     io.emit('update', { players, monsters, projectiles });
 }, TICK_RATE);
 
-http.listen(3000, () => console.log('Server running on port 3000'));
+http.listen(3000, () => console.log('RPG Server Live :3000'));
