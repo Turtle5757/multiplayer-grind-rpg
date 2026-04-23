@@ -11,7 +11,7 @@ const TICK_RATE = 30;
 const PVP_ZONE = 'graveyard'; 
 const BOSS_ZONE = 'boss_room';
 
-// --- DATA ---
+// --- DATA STRUCTURES ---
 const users = {}; 
 const GEAR_DATA = {
     sword: { stat: 'str', tiers: [
@@ -72,6 +72,7 @@ let monsters = [
 
 function respawn(p) { p.hp = 100; p.room = 'hub'; p.x = 1000; p.y = 1000; }
 
+// --- SOCKET LOGIC ---
 io.on('connection', (socket) => {
     socket.on('register', (data) => {
         if (!users[data.name]) {
@@ -119,7 +120,7 @@ io.on('connection', (socket) => {
 
     socket.on('attack', () => {
         const p = players[socket.id]; if (!p) return;
-        if (p.room !== PVP_ZONE && p.room !== BOSS_ZONE) return; // Attack restricted
+        if (p.room !== PVP_ZONE && p.room !== BOSS_ZONE) return; 
         if (Date.now() - (p.lastAtk || 0) < 350) return;
         p.lastAtk = Date.now();
         projectiles.push({ x: p.x, y: p.y, vx: Math.cos(p.angle)*16, vy: Math.sin(p.angle)*16, owner: socket.id, room: p.room, damage: p.str * p.mults.str * p.buffs.str });
@@ -160,6 +161,7 @@ io.on('connection', (socket) => {
     });
 });
 
+// --- GAME LOOP ---
 setInterval(() => {
     const now = Date.now();
     Object.values(players).forEach(p => {
@@ -171,10 +173,19 @@ setInterval(() => {
         monsters.forEach(m => {
             if (!m.isAlive || m.room !== p.room) return;
             if (m.isBoss) {
+                // Fixed Ring Attack (Spawn outside hitbox)
                 if (now - m.lastRingAtk > 3000) {
                     for (let i = 0; i < 12; i++) {
                         let a = (i / 12) * Math.PI * 2;
-                        projectiles.push({ x: m.x, y: m.y, vx: Math.cos(a)*8, vy: Math.sin(a)*8, owner: 'BOSS', room: m.room, damage: 40 });
+                        projectiles.push({ 
+                            x: m.x + Math.cos(a)*120, 
+                            y: m.y + Math.sin(a)*120, 
+                            vx: Math.cos(a)*8, 
+                            vy: Math.sin(a)*8, 
+                            owner: 'BOSS', 
+                            room: m.room, 
+                            damage: 40 
+                        });
                     }
                     m.lastRingAtk = now;
                 }
@@ -197,19 +208,28 @@ setInterval(() => {
 
     for (let i = projectiles.length - 1; i >= 0; i--) {
         let pr = projectiles[i]; pr.x += pr.vx; pr.y += pr.vy;
+        
         monsters.forEach(m => {
+            // FIX: Prevent boss/monsters from hitting themselves
+            if (pr.owner === 'BOSS') return;
+
             if (m.isAlive && m.room === pr.room && Math.hypot(pr.x - m.x, pr.y - m.y) < 60) {
-                m.hp -= pr.damage; projectiles.splice(i, 1);
+                m.hp -= pr.damage; 
+                if (projectiles[i]) projectiles.splice(i, 1);
                 if (m.hp <= 0) {
-                    m.isAlive = false; if (players[pr.owner]) players[pr.owner].gold += m.gold;
+                    m.isAlive = false; 
+                    if (players[pr.owner]) players[pr.owner].gold += m.gold;
                     if (!m.isMinion) setTimeout(() => { m.isAlive = true; m.hp = m.maxHp; }, 10000);
                 }
             }
         });
-        if (pr && projectiles[i] && pr.room === PVP_ZONE) {
+
+        // Player Collision
+        if (pr && projectiles[i]) {
             for (let id in players) {
                 let target = players[id];
-                if (id !== pr.owner && target.room === PVP_ZONE && Math.hypot(pr.x - target.x, pr.y - target.y) < 40) {
+                // Only allow boss projectiles to hit players, or players to hit each other in PvP
+                if (id !== pr.owner && target.room === pr.room && Math.hypot(pr.x - target.x, pr.y - target.y) < 40) {
                     target.hp -= Math.max(5, pr.damage - (target.def * target.mults.def * 0.5));
                     if (target.hp <= 0) {
                         if (players[pr.owner]) {
