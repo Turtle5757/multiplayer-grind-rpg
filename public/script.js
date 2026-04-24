@@ -1,271 +1,271 @@
-const express = require('express');
-const app = express();
-const http = require('http').Server(app);
-const io = require('socket.io')(http);
+window.socket = io({
+    transports: ['websocket']
+});
 
-app.use(express.static('public'));
-
-// ===================== CONFIG =====================
-const WORLD_SIZE = 2000;
-const TICK_RATE = 1000 / 30;
-
-const GEAR_DATA = {
-    sword: [1.0, 1.3, 1.7, 2.2, 3.5],
-    armor: [1.0, 1.4, 1.8, 2.5, 4.0],
-    boots: [1.0, 1.2, 1.4, 1.7, 2.5]
-};
-
-const PORTALS = [
-    { fromRoom: 'hub', toRoom: 'gym', x: 100, y: 1000, targetX: 1800, targetY: 1000, color: '#e67e22', label: 'GYM' },
-    { fromRoom: 'hub', toRoom: 'lake', x: 1900, y: 1000, targetX: 200, targetY: 1000, color: '#3498db', label: 'LAKE' },
-    { fromRoom: 'hub', toRoom: 'shrine', x: 1000, y: 100, targetX: 1000, targetY: 1800, color: '#2ecc71', label: 'SHRINE' },
-    { fromRoom: 'hub', toRoom: 'shop', x: 1000, y: 1900, targetX: 1000, targetY: 200, color: '#f1c40f', label: 'SHOP' },
-    { fromRoom: 'hub', toRoom: 'graveyard', x: 1800, y: 200, targetX: 200, targetY: 200, color: '#555', label: 'GRAVEYARD' },
-
-    { fromRoom: 'graveyard', toRoom: 'boss_room', x: 1000, y: 100, targetX: 1000, targetY: 1800, color: '#ff0000', label: 'BOSS' },
-    { fromRoom: 'boss_room', toRoom: 'graveyard', x: 1000, y: 1900, targetX: 1000, targetY: 200, color: '#ffffff', label: 'EXIT' }
-];
-
-// ===================== STATE =====================
-let users = {};
+// ===================== GAME STATE =====================
+let me = null;
 let players = {};
+let monsters = [];
 let projectiles = [];
+let portals = [];
 
-let monsters = [
-    { id: 1, x: 500, y: 500, hp: 200, maxHp: 200, str: 25, gold: 50, room: 'graveyard', isAlive: true, spd: 2 },
-    { id: 2, x: 1500, y: 1200, hp: 200, maxHp: 200, str: 25, gold: 50, room: 'graveyard', isAlive: true, spd: 2 },
-    { id: 'BOSS', x: 1000, y: 1000, hp: 8000, maxHp: 8000, str: 120, gold: 2500, room: 'boss_room', isAlive: true, spd: 1.8, isBoss: true }
-];
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-// ===================== HELPERS =====================
-function createPlayer(socketId, data) {
-    return {
-        id: socketId,
-        name: data.name,
-        charClass: data.charClass,
+// camera
+let camX = 0;
+let camY = 0;
 
-        x: 1000,
-        y: 1000,
-        room: 'hub',
+// input
+let keys = { w: false, a: false, s: false, d: false };
+let mouseX = 0;
+let mouseY = 0;
 
-        hp: 100,
-        maxHp: 100,
-        mana: 100,
-        maxMana: 100,
+// skill binds
+let myBinds = { Q: "start", E: "ult" };
 
-        gold: 0,
+// ===================== INIT =====================
+socket.on("connect", () => {
+    console.log("Connected:", socket.id);
+});
 
-        // stats
-        str: 10,
-        def: 5,
-        spd: 4,
+socket.on("init", (data) => {
+    portals = data.portals || [];
+    me = data.self || null;
 
-        // progression (NEW FIXED SYSTEM)
-        level: 1,
-        xp: 0,
-        prestige: 0,
+    resize();
+    window.addEventListener("resize", resize);
+});
 
-        skillPoints: 1,
-
-        upgrades: { start: 0, ult: 0, branchA: 0, branchB: 0 },
-        gear: { sword: 0, armor: 0, boots: 0 },
-
-        buffs: { str: 1.0 },
-        cooldowns: {},
-        keys: {}
-    };
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 }
 
-function giveXP(p, amount) {
-    p.xp += amount;
+// ===================== SERVER UPDATE =====================
+socket.on("update", (data) => {
+    players = data.players || {};
+    monsters = data.monsters || [];
+    projectiles = data.projectiles || [];
 
-    const needed = 100 + p.level * 25;
+    me = players[socket.id] || null;
 
-    if (p.xp >= needed) {
-        p.xp -= needed;
-        p.level += 1;
-        p.skillPoints += 1;
-
-        p.maxHp += 10;
-        p.hp = p.maxHp;
+    if (me) {
+        updateStatsUI();
+        updateSkillTreeUI();
     }
-}
+});
 
-function respawn(p) {
-    p.hp = p.maxHp;
-    p.mana = p.maxMana;
-    p.room = 'hub';
-    p.x = 1000;
-    p.y = 1000;
-}
+// ===================== INPUT =====================
+window.addEventListener("keydown", (e) => {
+    const k = e.key.toLowerCase();
 
-// ===================== SOCKET =====================
-io.on('connection', (socket) => {
+    if (k in keys) {
+        keys[k] = true;
+    }
 
-    socket.on('register', (data) => {
-        if (!users[data.name]) {
-            users[data.name] = {
-                password: data.password,
-                charClass: data.charClass,
-                str: 10,
-                def: 5,
-                spd: 4,
-                gold: 0,
-                skillPoints: 1,
-                upgrades: { start: 0, ult: 0, branchA: 0, branchB: 0 },
-                gear: { sword: 0, armor: 0, boots: 0 }
-            };
+    const keyUp = e.key.toUpperCase();
 
-            socket.emit('authMessage', 'Registered!');
-        } else {
-            socket.emit('authError', 'User exists');
-        }
-    });
+    if (myBinds[keyUp] && me && me.upgrades[myBinds[keyUp]] > 0) {
+        const world = screenToWorld(mouseX, mouseY);
 
-    socket.on('login', (data) => {
-        const u = users[data.name];
-
-        if (u && u.password === data.password) {
-            players[socket.id] = createPlayer(socket.id, { ...data, ...u });
-
-            // FIX: ALWAYS SEND FULL PLAYER DATA
-            socket.emit('init', {
-                id: socket.id,
-                portals,
-                self: players[socket.id]
-            });
-        } else {
-            socket.emit('authError', 'Login failed');
-        }
-    });
-
-    socket.on('move', (data) => {
-        const p = players[socket.id];
-        if (!p) return;
-
-        p.keys = data.keys;
-
-        let speed = p.spd * GEAR_DATA.boots[p.gear.boots];
-
-        if (p.keys.w) p.y -= speed;
-        if (p.keys.s) p.y += speed;
-        if (p.keys.a) p.x -= speed;
-        if (p.keys.d) p.x += speed;
-
-        p.x = Math.max(0, Math.min(WORLD_SIZE, p.x));
-        p.y = Math.max(0, Math.min(WORLD_SIZE, p.y));
-
-        // portals
-        for (const pt of PORTALS) {
-            if (p.room === pt.fromRoom &&
-                Math.hypot(p.x - pt.x, p.y - pt.y) < 60) {
-                p.room = pt.toRoom;
-                p.x = pt.targetX;
-                p.y = pt.targetY;
-            }
-        }
-    });
-
-    socket.on('attack', (data) => {
-        const p = players[socket.id];
-        if (!p) return;
-
-        const angle = Math.atan2(data.y - p.y, data.x - p.x);
-        const damage = p.str * GEAR_DATA.sword[p.gear.sword];
-
-        for (const m of monsters) {
-            if (!m.isAlive || m.room !== p.room) continue;
-
-            if (Math.hypot(p.x - m.x, p.y - m.y) < 140) {
-                m.hp -= damage;
-
-                if (m.hp <= 0) {
-                    m.isAlive = false;
-
-                    p.gold += m.gold;
-                    giveXP(p, m.isBoss ? 500 : 50);
-
-                    setTimeout(() => {
-                        m.isAlive = true;
-                        m.hp = m.maxHp;
-                    }, 12000);
-                }
-            }
-        }
-
-        projectiles.push({
-            x: p.x,
-            y: p.y,
-            vx: Math.cos(angle) * 18,
-            vy: Math.sin(angle) * 18,
-            room: p.room,
-            owner: socket.id,
-            damage
+        socket.emit("useAbility", {
+            key: keyUp,
+            skillId: myBinds[keyUp],
+            targetX: world.x,
+            targetY: world.y
         });
-    });
+    }
+});
 
-    socket.on('disconnect', () => {
-        const p = players[socket.id];
-        if (p) {
-            users[p.name] = {
-                ...users[p.name],
-                gold: p.gold,
-                skillPoints: p.skillPoints,
-                upgrades: p.upgrades,
-                gear: p.gear
-            };
-            delete players[socket.id];
-        }
+window.addEventListener("keyup", (e) => {
+    const k = e.key.toLowerCase();
+
+    if (k in keys) {
+        keys[k] = false;
+    }
+});
+
+// mouse
+window.addEventListener("mousemove", (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+});
+
+// attack
+window.addEventListener("mousedown", (e) => {
+    if (!me) return;
+    if (document.getElementById("skill-tree").style.display === "block") return;
+
+    const world = screenToWorld(e.clientX, e.clientY);
+
+    socket.emit("attack", {
+        x: world.x,
+        y: world.y
     });
 });
 
-// ===================== GAME LOOP =====================
+// ===================== MOVEMENT LOOP (IMPORTANT) =====================
 setInterval(() => {
+    if (!me) return;
+    socket.emit("move", { keys });
+}, 1000 / 30);
 
-    for (const p of Object.values(players)) {
+// ===================== HELPERS =====================
+function screenToWorld(x, y) {
+    return {
+        x: x + camX,
+        y: y + camY
+    };
+}
 
-        p.mana = Math.min(p.maxMana, p.mana + 0.5);
+function toggleMenu(id) {
+    const el = document.getElementById(id);
+    el.style.display = (el.style.display === "block") ? "none" : "block";
+}
 
-        for (const m of monsters) {
-            if (!m.isAlive || m.room !== p.room) continue;
+function bindSkill(skillId, key) {
+    if (!me || me.upgrades[skillId] === 0) return;
 
-            const dist = Math.hypot(p.x - m.x, p.y - m.y);
-
-            if (dist < 500) {
-                const ang = Math.atan2(p.y - m.y, p.x - m.x);
-
-                m.x += Math.cos(ang) * m.spd;
-                m.y += Math.sin(ang) * m.spd;
-
-                if (dist < 60) {
-                    p.hp -= m.str;
-
-                    if (p.hp <= 0) respawn(p);
-                }
-            }
-        }
+    for (let k in myBinds) {
+        if (myBinds[k] === skillId) myBinds[k] = null;
     }
+
+    myBinds[key] = skillId;
+}
+
+// ===================== UI =====================
+function updateStatsUI() {
+    if (!me) return;
+
+    document.getElementById("hp-bar").style.width =
+        (me.hp / me.maxHp) * 100 + "%";
+
+    document.getElementById("mana-bar").style.width =
+        (me.mana / me.maxMana) * 100 + "%";
+
+    document.getElementById("gold-display").innerText =
+        `Gold: ${Math.floor(me.gold)}`;
+
+    document.getElementById("stats-text").innerText =
+        `LVL: ${me.level} | XP: ${Math.floor(me.xp)} | PRESTIGE: ${me.prestige} | STR: ${me.str.toFixed(1)} | DEF: ${me.def.toFixed(1)} | SPD: ${me.spd.toFixed(2)}`;
+
+    const xpBar = document.getElementById("xp-bar");
+    if (xpBar) {
+        const needed = 100 + me.level * 25;
+        xpBar.style.width = Math.min(100, (me.xp / needed) * 100) + "%";
+    }
+}
+
+function updateSkillTreeUI() {
+    if (!me) return;
+
+    document.getElementById("sp-count").innerText = me.skillPoints;
+
+    const names = {
+        Warrior: {
+            start: "Slash Wave",
+            ult: "Berserk Rage",
+            a: "Vampirism",
+            b: "Juggernaut"
+        },
+        Archer: {
+            start: "Piercing Bolt",
+            ult: "Shadow Dash",
+            a: "Eagle Eye",
+            b: "Multishot"
+        },
+        Mage: {
+            start: "Fireball",
+            ult: "Great Heal",
+            a: "Mana Flow",
+            b: "Frost Nova"
+        }
+    };
+
+    const s = names[me.charClass];
+    if (!s) return;
+
+    document.getElementById("start-skill-name").innerText = s.start;
+    document.getElementById("ult-skill-name").innerText = s.ult;
+    document.getElementById("skillA-name").innerText = s.a;
+    document.getElementById("skillB-name").innerText = s.b;
+
+    document.getElementById("skillA-lv").innerText = me.upgrades.branchA;
+    document.getElementById("skillB-lv").innerText = me.upgrades.branchB;
+}
+
+// ===================== RENDER LOOP =====================
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!me) {
+        requestAnimationFrame(draw);
+        return;
+    }
+
+    // smooth camera
+    camX += ((me.x - canvas.width / 2) - camX) * 0.12;
+    camY += ((me.y - canvas.height / 2) - camY) * 0.12;
+
+    // background
+    ctx.fillStyle = "#111";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // portals
+    portals.forEach(p => {
+        if (p.fromRoom !== me.room) return;
+
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x - camX, p.y - camY, 40, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        ctx.fillStyle = "#fff";
+        ctx.fillText(p.label, p.x - camX - 20, p.y - camY - 50);
+    });
+
+    // monsters
+    monsters.forEach(m => {
+        if (!m.isAlive || m.room !== me.room) return;
+
+        ctx.fillStyle = m.isBoss ? "#ff0000" : "#8e44ad";
+        ctx.beginPath();
+        ctx.arc(m.x - camX, m.y - camY, m.isBoss ? 80 : 30, 0, Math.PI * 2);
+        ctx.fill();
+    });
 
     // projectiles
-    for (let i = projectiles.length - 1; i >= 0; i--) {
-        const pr = projectiles[i];
+    projectiles.forEach(p => {
+        if (p.room !== me.room) return;
 
-        pr.x += pr.vx;
-        pr.y += pr.vy;
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(p.x - camX, p.y - camY, 4, 0, Math.PI * 2);
+        ctx.fill();
+    });
 
-        for (const m of monsters) {
-            if (!m.isAlive || m.room !== pr.room) continue;
+    // players
+    Object.values(players).forEach(p => {
+        if (p.room !== me.room) return;
 
-            if (Math.hypot(pr.x - m.x, pr.y - m.y) < 50) {
-                m.hp -= pr.damage;
-                projectiles.splice(i, 1);
-                break;
-            }
-        }
-    }
+        const colors = {
+            Warrior: "#e67e22",
+            Archer: "#2ecc71",
+            Mage: "#9b59b6"
+        };
 
-    io.emit('update', { players, monsters, projectiles });
+        ctx.fillStyle = colors[p.charClass] || "#fff";
+        ctx.fillRect(p.x - camX - 20, p.y - camY - 20, 40, 40);
 
-}, TICK_RATE);
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.fillText(p.name, p.x - camX, p.y - camY - 45);
+    });
 
-http.listen(3000, () => console.log("Server running"));
+    requestAnimationFrame(draw);
+}
+
+draw();
