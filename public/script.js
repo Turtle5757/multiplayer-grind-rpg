@@ -39,6 +39,7 @@ socket.on('update', (data) => {
     players = data.players;
     monsters = data.monsters;
     projectiles = data.projectiles;
+
     me = players[socket.id];
 
     if (me) {
@@ -47,7 +48,7 @@ socket.on('update', (data) => {
     }
 });
 
-// --- INPUT HANDLING ---
+// --- INPUT ---
 window.addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase();
 
@@ -57,19 +58,15 @@ window.addEventListener('keydown', (e) => {
 
     const pressed = e.key.toUpperCase();
 
-    if (myBinds[pressed] && me) {
-        const skillId = myBinds[pressed];
+    if (myBinds[pressed] && me && me.upgrades[myBinds[pressed]] > 0) {
+        const world = screenToWorld(mouseX, mouseY);
 
-        if (me.upgrades[skillId] > 0) {
-            const world = screenToWorld(mouseX, mouseY);
-
-            socket.emit('useAbility', {
-                key: pressed,
-                skillId,
-                targetX: world.x,
-                targetY: world.y
-            });
-        }
+        socket.emit('useAbility', {
+            key: pressed,
+            skillId: myBinds[pressed],
+            targetX: world.x,
+            targetY: world.y
+        });
     }
 });
 
@@ -86,14 +83,14 @@ window.addEventListener('mousemove', (e) => {
     mouseY = e.clientY;
 });
 
-// --- CONTINUOUS MOVEMENT (FIX) ---
+// --- CONTINUOUS MOVEMENT FIX ---
 setInterval(() => {
     if (me) {
         socket.emit('move', { keys });
     }
 }, 1000 / 30);
 
-// --- CLICK ATTACK ---
+// --- ATTACK ---
 window.addEventListener('mousedown', (e) => {
     if (!me) return;
 
@@ -115,6 +112,11 @@ function screenToWorld(x, y) {
     };
 }
 
+function toggleMenu(id) {
+    const el = document.getElementById(id);
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+
 function bindSkill(skillId, key) {
     if (!me || me.upgrades[skillId] === 0) return;
 
@@ -125,13 +127,10 @@ function bindSkill(skillId, key) {
     myBinds[key] = skillId;
 }
 
-function toggleMenu(id) {
-    const el = document.getElementById(id);
-    el.style.display = el.style.display === 'block' ? 'none' : 'block';
-}
-
-// --- UI ---
+// --- UI STATS ---
 function updateStatsUI() {
+    if (!me) return;
+
     document.getElementById('hp-bar').style.width =
         (me.hp / me.maxHp) * 100 + '%';
 
@@ -142,10 +141,20 @@ function updateStatsUI() {
         `Gold: ${Math.floor(me.gold)}`;
 
     document.getElementById('stats-text').innerText =
-        `STR: ${me.str.toFixed(1)} | DEF: ${me.def.toFixed(1)} | SPD: ${me.spd.toFixed(2)}`;
+        `LVL: ${me.level} | XP: ${Math.floor(me.xp)} | PRESTIGE: ${me.prestige} | STR: ${me.str.toFixed(1)} | DEF: ${me.def.toFixed(1)} | SPD: ${me.spd.toFixed(2)}`;
+
+    // XP BAR (IMPORTANT)
+    const xpBar = document.getElementById('xp-bar');
+    if (xpBar) {
+        const needed = 100 + me.level * 20;
+        xpBar.style.width = Math.min(100, (me.xp / needed) * 100) + '%';
+    }
 }
 
+// --- SKILL TREE UI ---
 function updateSkillTreeUI() {
+    if (!me) return;
+
     document.getElementById('sp-count').innerText = me.skillPoints;
 
     const skillNames = {
@@ -170,6 +179,7 @@ function updateSkillTreeUI() {
     };
 
     const s = skillNames[me.charClass];
+    if (!s) return;
 
     document.getElementById('start-skill-name').innerText = s.start;
     document.getElementById('ult-skill-name').innerText = s.ult;
@@ -189,21 +199,15 @@ function draw() {
         return;
     }
 
-    // Smooth camera
+    // smooth camera
     camX += ((me.x - canvas.width / 2) - camX) * 0.12;
     camY += ((me.y - canvas.height / 2) - camY) * 0.12;
 
-    // Background
+    // background
     ctx.fillStyle = '#111';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Low HP effect
-    if (me.hp < me.maxHp * 0.3) {
-        ctx.fillStyle = 'rgba(255,0,0,0.07)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-
-    // Portals
+    // portals
     portals.forEach(p => {
         if (p.fromRoom === me.room) {
             ctx.globalAlpha = 0.5;
@@ -218,7 +222,7 @@ function draw() {
         }
     });
 
-    // Monsters
+    // monsters
     monsters.forEach(m => {
         if (!m.isAlive || m.room !== me.room) return;
 
@@ -228,7 +232,7 @@ function draw() {
         ctx.fill();
     });
 
-    // Projectiles
+    // projectiles
     projectiles.forEach(p => {
         if (p.room !== me.room) return;
 
@@ -238,7 +242,7 @@ function draw() {
         ctx.fill();
     });
 
-    // Players
+    // players
     Object.values(players).forEach(p => {
         if (p.room !== me.room) return;
 
@@ -255,6 +259,7 @@ function draw() {
         ctx.textAlign = 'center';
         ctx.fillText(p.name, p.x - camX, p.y - camY - 45);
 
+        // HP bar
         ctx.fillStyle = '#f00';
         ctx.fillRect(p.x - camX - 20, p.y - camY - 35, 40, 4);
 
