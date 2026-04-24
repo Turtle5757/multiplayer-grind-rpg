@@ -1,17 +1,24 @@
-/* --- ROOT / VARIABLES --- */
+/* =========================
+   ROOT THEME
+========================= */
 :root {
+    --bg: #0f0f0f;
+    --panel: #1a1a1a;
+    --panel2: #242424;
+
     --accent: #e67e22;
     --accent2: #f1c40f;
-    --bg-dark: #111;
-    --panel: #1a1a1a;
-    --panel2: #2b2b2b;
+    --good: #2ecc71;
+    --bad: #e74c3c;
 }
 
-/* --- BASE --- */
+/* =========================
+   BASE
+========================= */
 body {
     margin: 0;
     overflow: hidden;
-    background: #000;
+    background: var(--bg);
     font-family: 'Segoe UI', sans-serif;
     color: white;
     user-select: none;
@@ -21,36 +28,37 @@ canvas {
     display: block;
 }
 
-/* --- OVERLAY --- */
+/* =========================
+   AUTH SCREEN
+========================= */
 .overlay {
     position: absolute;
     inset: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: rgba(0,0,0,0.9);
+    background: rgba(0,0,0,0.92);
     z-index: 1000;
 }
 
-/* --- MENU BOX --- */
 .menu-box {
     background: var(--panel);
-    padding: 30px;
+    padding: 28px;
+    border-radius: 14px;
     border: 2px solid var(--accent);
-    border-radius: 15px;
-    text-align: center;
     width: 90%;
     max-width: 380px;
-    box-shadow: 0 0 30px rgba(230,126,34,0.4);
+    text-align: center;
+    box-shadow: 0 0 40px rgba(230,126,34,0.3);
 }
 
 .brand-title {
     color: var(--accent);
-    letter-spacing: 3px;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
+    letter-spacing: 2px;
 }
 
-/* --- INPUTS --- */
+/* inputs */
 input, select {
     width: 100%;
     padding: 12px;
@@ -66,134 +74,153 @@ input:focus, select:focus {
     border-color: var(--accent);
 }
 
-/* --- BUTTONS --- */
+/* =========================
+   BUTTONS
+========================= */
 button {
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: 0.15s;
 }
 
 button:active {
-    transform: scale(0.95);
+    transform: scale(0.96);
 }
 
 .primary-btn {
     background: var(--accent);
     border: none;
-    color: white;
-    padding: 12px;
+    padding: 10px;
+    width: 100%;
     border-radius: 6px;
     font-weight: bold;
+    color: white;
 }
 
 .primary-btn:hover {
-    filter: brightness(1.2);
+    filter: brightness(1.15);
 }
 
 .secondary-btn {
     background: #444;
     border: none;
-    color: white;
-    padding: 12px;
+    padding: 10px;
+    width: 100%;
+    margin-top: 8px;
     border-radius: 6px;
+    color: white;
 }
 
-/* --- HUD --- */
+/* =========================
+   HUD
+========================= */
 #hud {
     position: absolute;
-    bottom: 20px;
-    left: 20px;
+    bottom: 18px;
+    left: 18px;
     z-index: 10;
     pointer-events: none;
 }
 
+/* bars */
 .bar-container {
-    width: 250px;
-    height: 20px;
+    width: 240px;
+    height: 18px;
     background: #222;
     border-radius: 10px;
+    margin-bottom: 6px;
     overflow: hidden;
-    margin-bottom: 8px;
+    border: 1px solid #333;
 }
 
+/* HP */
 #hp-bar {
     height: 100%;
-    background: linear-gradient(90deg, #ff4757, #ff6b81);
+    background: linear-gradient(90deg, #e74c3c, #ff6b81);
     transition: width 0.2s;
 }
 
+/* MANA */
 #mana-bar {
     height: 100%;
-    background: linear-gradient(90deg, #1e90ff, #70a1ff);
+    background: linear-gradient(90deg, #3498db, #70a1ff);
     transition: width 0.2s;
 }
 
+/* XP (NEW) */
+#xp-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #9b59b6, #f1c40f);
+    transition: width 0.2s;
+}
+
+/* stats */
 #stats-panel {
     pointer-events: auto;
+    margin-top: 6px;
 }
 
 #stats-text {
-    font-size: 14px;
+    font-size: 13px;
+    color: #ddd;
     margin-bottom: 8px;
 }
 
-.hud-btn {
-    padding: 6px 10px;
-    font-size: 12px;
-}
-
-/* --- GOLD --- */
+/* =========================
+   GOLD
+========================= */
 #gold-display {
     position: absolute;
-    top: 20px;
-    right: 20px;
+    top: 18px;
+    right: 18px;
     font-size: 26px;
-    color: var(--accent2);
     font-weight: bold;
+    color: var(--accent2);
+    text-shadow: 0 0 10px rgba(241,196,15,0.4);
 }
 
-/* --- SKILL TREE --- */
+/* =========================
+   SKILL TREE
+========================= */
 .overlay-panel {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%) scale(0.95);
+    transform: translate(-50%, -50%);
     background: rgba(20,20,20,0.98);
     border: 2px solid var(--accent2);
-    padding: 25px;
-    border-radius: 15px;
-    display: none;
-    z-index: 500;
+    border-radius: 14px;
+    padding: 22px;
     width: 90%;
     max-width: 650px;
-    animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translate(-50%, -60%) scale(0.9); }
-    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    display: none;
+    z-index: 500;
 }
 
 .menu-header {
     text-align: center;
     color: var(--accent2);
+    margin-bottom: 5px;
 }
 
 .sp-text {
     text-align: center;
     color: #aaa;
+    margin-bottom: 18px;
 }
 
+/* grid */
 .skill-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 15px;
+    gap: 14px;
 }
 
+/* nodes */
 .skill-node {
-    background: #2d3436;
-    padding: 15px;
+    background: var(--panel2);
+    padding: 14px;
     border-radius: 10px;
-    border: 1px solid #444;
+    border: 1px solid #333;
     transition: 0.2s;
 }
 
@@ -203,19 +230,27 @@ button:active {
 }
 
 .skill-node h4 {
+    margin: 0 0 8px 0;
     color: var(--accent2);
-    margin-bottom: 10px;
 }
 
+/* upgrade buttons */
 .upgrade-btn {
     width: 100%;
+    padding: 10px;
     background: var(--accent2);
     border: none;
-    padding: 10px;
+    border-radius: 6px;
     font-weight: bold;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 
+.upgrade-btn.passive {
+    background: #34495e;
+    color: white;
+}
+
+/* binds */
 .bind-row {
     display: flex;
     gap: 6px;
@@ -223,43 +258,49 @@ button:active {
 
 .bind-btn {
     flex: 1;
-    background: #1e272e;
+    background: #1b1b1b;
     border: 1px solid #444;
     color: #aaa;
     padding: 6px;
     font-size: 11px;
+    border-radius: 4px;
 }
 
 .bind-btn:hover {
-    color: white;
     border-color: var(--accent2);
+    color: white;
 }
 
-/* --- CLOSE BUTTON --- */
+/* close */
 .close-btn {
-    margin-top: 20px;
+    margin-top: 18px;
     width: 100%;
     padding: 12px;
     background: none;
     border: 1px solid #444;
     color: #aaa;
+    border-radius: 6px;
 }
 
 .close-btn:hover {
-    color: white;
     border-color: white;
+    color: white;
 }
 
-/* --- CONTROLS --- */
+/* =========================
+   CONTROLS
+========================= */
 #controls-hint {
     position: absolute;
-    bottom: 20px;
-    right: 20px;
-    color: #555;
+    bottom: 18px;
+    right: 18px;
     font-size: 12px;
+    color: #666;
 }
 
-/* --- RESPONSIVE --- */
+/* =========================
+   MOBILE SUPPORT
+========================= */
 @media (max-width: 600px) {
     .skill-grid {
         grid-template-columns: 1fr;
@@ -267,5 +308,9 @@ button:active {
 
     #gold-display {
         font-size: 18px;
+    }
+
+    .bar-container {
+        width: 180px;
     }
 }
