@@ -1,8 +1,8 @@
 window.socket = io({
-    transports: ['websocket']
+    transports: ["websocket"]
 });
 
-// ===================== GAME STATE =====================
+// ===================== STATE =====================
 let me = null;
 let players = {};
 let monsters = [];
@@ -64,14 +64,14 @@ window.addEventListener("keydown", (e) => {
         keys[k] = true;
     }
 
-    const keyUp = e.key.toUpperCase();
+    const bindKey = e.key.toUpperCase();
 
-    if (myBinds[keyUp] && me && me.upgrades[myBinds[keyUp]] > 0) {
+    if (myBinds[bindKey] && me && me.upgrades[myBinds[bindKey]] > 0) {
         const world = screenToWorld(mouseX, mouseY);
 
         socket.emit("useAbility", {
-            key: keyUp,
-            skillId: myBinds[keyUp],
+            key: bindKey,
+            skillId: myBinds[bindKey],
             targetX: world.x,
             targetY: world.y
         });
@@ -86,13 +86,13 @@ window.addEventListener("keyup", (e) => {
     }
 });
 
-// mouse
+// mouse tracking
 window.addEventListener("mousemove", (e) => {
     mouseX = e.clientX;
     mouseY = e.clientY;
 });
 
-// attack
+// attack click
 window.addEventListener("mousedown", (e) => {
     if (!me) return;
     if (document.getElementById("skill-tree").style.display === "block") return;
@@ -105,10 +105,12 @@ window.addEventListener("mousedown", (e) => {
     });
 });
 
-// ===================== MOVEMENT LOOP (IMPORTANT) =====================
+// ===================== MOVEMENT LOOP =====================
 setInterval(() => {
     if (!me) return;
+
     socket.emit("move", { keys });
+
 }, 1000 / 30);
 
 // ===================== HELPERS =====================
@@ -121,6 +123,8 @@ function screenToWorld(x, y) {
 
 function toggleMenu(id) {
     const el = document.getElementById(id);
+    if (!el) return;
+
     el.style.display = (el.style.display === "block") ? "none" : "block";
 }
 
@@ -145,42 +149,19 @@ function updateStatsUI() {
         (me.mana / me.maxMana) * 100 + "%";
 
     document.getElementById("gold-display").innerText =
-        `Gold: ${Math.floor(me.gold)}`;
+        "Gold: " + Math.floor(me.gold);
 
     document.getElementById("stats-text").innerText =
-        `LVL: ${me.level} | XP: ${Math.floor(me.xp)} | PRESTIGE: ${me.prestige} | STR: ${me.str.toFixed(1)} | DEF: ${me.def.toFixed(1)} | SPD: ${me.spd.toFixed(2)}`;
-
-    const xpBar = document.getElementById("xp-bar");
-    if (xpBar) {
-        const needed = 100 + me.level * 25;
-        xpBar.style.width = Math.min(100, (me.xp / needed) * 100) + "%";
-    }
+        `LVL ${me.level} | XP ${Math.floor(me.xp)} | PRESTIGE ${me.prestige} | STR ${me.str.toFixed(1)} | DEF ${me.def.toFixed(1)} | SPD ${me.spd.toFixed(2)}`;
 }
 
 function updateSkillTreeUI() {
     if (!me) return;
 
-    document.getElementById("sp-count").innerText = me.skillPoints;
-
     const names = {
-        Warrior: {
-            start: "Slash Wave",
-            ult: "Berserk Rage",
-            a: "Vampirism",
-            b: "Juggernaut"
-        },
-        Archer: {
-            start: "Piercing Bolt",
-            ult: "Shadow Dash",
-            a: "Eagle Eye",
-            b: "Multishot"
-        },
-        Mage: {
-            start: "Fireball",
-            ult: "Great Heal",
-            a: "Mana Flow",
-            b: "Frost Nova"
-        }
+        Warrior: { start: "Slash Wave", ult: "Berserk Rage", a: "Vampirism", b: "Juggernaut" },
+        Archer: { start: "Piercing Bolt", ult: "Shadow Dash", a: "Eagle Eye", b: "Multishot" },
+        Mage: { start: "Fireball", ult: "Great Heal", a: "Mana Flow", b: "Frost Nova" }
     };
 
     const s = names[me.charClass];
@@ -191,11 +172,10 @@ function updateSkillTreeUI() {
     document.getElementById("skillA-name").innerText = s.a;
     document.getElementById("skillB-name").innerText = s.b;
 
-    document.getElementById("skillA-lv").innerText = me.upgrades.branchA;
-    document.getElementById("skillB-lv").innerText = me.upgrades.branchB;
+    document.getElementById("sp-count").innerText = me.skillPoints;
 }
 
-// ===================== RENDER LOOP =====================
+// ===================== RENDER =====================
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -218,11 +198,12 @@ function draw() {
 
         ctx.globalAlpha = 0.5;
         ctx.fillStyle = p.color;
+
         ctx.beginPath();
         ctx.arc(p.x - camX, p.y - camY, 40, 0, Math.PI * 2);
         ctx.fill();
-        ctx.globalAlpha = 1;
 
+        ctx.globalAlpha = 1;
         ctx.fillStyle = "#fff";
         ctx.fillText(p.label, p.x - camX - 20, p.y - camY - 50);
     });
