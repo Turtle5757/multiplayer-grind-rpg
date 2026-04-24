@@ -16,18 +16,19 @@ const io = socketio(server, {
 const PORT = process.env.PORT || 3000;
 const USERS_FILE = "./users.json";
 
-// ===================== DATA =====================
+// ===================== STATE =====================
 let users = {};
 let players = {};
 let projectiles = [];
 
+// ===================== MONSTER ZONE =====================
 let monsters = [
-    { id: 1, x: 500, y: 500, hp: 120, maxHp: 120, room: "gym", xp: 25, gold: 10, alive: true, spd: 1.5 },
-    { id: 2, x: 1500, y: 600, hp: 200, maxHp: 200, room: "lake", xp: 40, gold: 15, alive: true, spd: 1.2 },
-    { id: 3, x: 1000, y: 1500, hp: 500, maxHp: 500, room: "shrine", xp: 120, gold: 50, alive: true, spd: 2.0 }
+    { id: 1, x: 600, y: 600, hp: 120, maxHp: 120, room: "graveyard", xp: 25, gold: 10, alive: true, spd: 1.3 },
+    { id: 2, x: 900, y: 900, hp: 180, maxHp: 180, room: "graveyard", xp: 40, gold: 15, alive: true, spd: 1.1 },
+    { id: 3, x: 1200, y: 1200, hp: 500, maxHp: 500, room: "graveyard", xp: 120, gold: 50, alive: true, spd: 1.6 }
 ];
 
-// ===================== LOAD/SAVE =====================
+// ===================== LOAD / SAVE =====================
 function loadUsers() {
     try {
         users = JSON.parse(fs.readFileSync(USERS_FILE, "utf8") || "{}");
@@ -44,9 +45,15 @@ loadUsers();
 
 // ===================== PORTALS =====================
 const PORTALS = [
-    { fromRoom: "hub", toRoom: "gym", x: 100, y: 1000, targetX: 1800, targetY: 1000, color: "#e67e22", label: "GYM" },
-    { fromRoom: "hub", toRoom: "lake", x: 1900, y: 1000, targetX: 200, targetY: 1000, color: "#3498db", label: "LAKE" },
-    { fromRoom: "hub", toRoom: "shrine", x: 1000, y: 100, targetX: 1000, targetY: 1800, color: "#2ecc71", label: "SHRINE" }
+    // HUB → ROOMS
+    { fromRoom: "hub", toRoom: "graveyard", x: 500, y: 500, tx: 1500, ty: 1500, color: "#8e44ad", label: "GRAVEYARD" },
+    { fromRoom: "graveyard", toRoom: "hub", x: 1500, y: 1500, tx: 500, ty: 500, color: "#ffffff", label: "EXIT" },
+
+    { fromRoom: "hub", toRoom: "gym", x: 100, y: 1000, tx: 1800, ty: 1000, color: "#e67e22", label: "GYM" },
+    { fromRoom: "gym", toRoom: "hub", x: 1900, y: 1000, tx: 200, ty: 1000, color: "#ffffff", label: "EXIT" },
+
+    { fromRoom: "hub", toRoom: "lake", x: 1900, y: 1000, tx: 200, ty: 1000, color: "#3498db", label: "LAKE" },
+    { fromRoom: "lake", toRoom: "hub", x: 100, y: 1000, tx: 1800, ty: 1000, color: "#ffffff", label: "EXIT" }
 ];
 
 // ===================== PLAYER =====================
@@ -75,8 +82,6 @@ function createPlayer(id, name, u) {
         xp: u.xp || 0,
         xpToNext: 100,
 
-        prestige: u.prestige || 0,
-
         skillPoints: u.skillPoints,
         upgrades: u.upgrades,
         gear: u.gear,
@@ -90,13 +95,15 @@ function createPlayer(id, name, u) {
 // ===================== SOCKET =====================
 io.on("connection", (socket) => {
 
+    console.log("Connected:", socket.id);
+
     // -------- REGISTER --------
     socket.on("register", (data) => {
         const name = (data.name || "").trim();
         if (!name || !data.password) return;
 
         if (users[name]) {
-            socket.emit("authError", "User exists");
+            socket.emit("authError", "User already exists");
             return;
         }
 
@@ -109,7 +116,6 @@ io.on("connection", (socket) => {
             gold: 0,
             level: 1,
             xp: 0,
-            prestige: 0,
             skillPoints: 1,
             upgrades: { start: 0, ult: 0, branchA: 0, branchB: 0 },
             gear: { sword: 0, armor: 0, boots: 0 }
@@ -134,8 +140,7 @@ io.on("connection", (socket) => {
 
         socket.emit("init", {
             id: socket.id,
-            portals: PORTALS,
-            self: players[socket.id]
+            portals: PORTALS
         });
     });
 
@@ -152,16 +157,20 @@ io.on("connection", (socket) => {
         if (k.d) p.x += p.spd;
 
         for (const pt of PORTALS) {
-            if (p.room === pt.fromRoom &&
-                Math.hypot(p.x - pt.x, p.y - pt.y) < 60) {
-                p.room = pt.toRoom;
-                p.x = pt.targetX;
-                p.y = pt.targetY;
+            if (p.room === pt.fromRoom) {
+                const dx = p.x - pt.x;
+                const dy = p.y - pt.y;
+
+                if (Math.sqrt(dx * dx + dy * dy) < 60) {
+                    p.room = pt.toRoom;
+                    p.x = pt.tx;
+                    p.y = pt.ty;
+                }
             }
         }
     });
 
-    // -------- ATTACK --------
+    // -------- ATTACK (PvP + PvE) --------
     socket.on("attack", (d) => {
         const p = players[socket.id];
         if (!p) return;
@@ -171,12 +180,44 @@ io.on("connection", (socket) => {
         projectiles.push({
             x: p.x,
             y: p.y,
-            vx: Math.cos(angle) * 12,
-            vy: Math.sin(angle) * 12,
+            vx: Math.cos(angle) * 14,
+            vy: Math.sin(angle) * 14,
             owner: socket.id,
             room: p.room,
             damage: p.str
         });
+    });
+
+    // -------- ABILITIES --------
+    socket.on("useAbility", (data) => {
+        const p = players[socket.id];
+        if (!p) return;
+
+        const now = Date.now();
+        if (!p.cooldowns[data.key]) p.cooldowns[data.key] = 0;
+        if (now < p.cooldowns[data.key]) return;
+
+        const dx = data.targetX - p.x;
+        const dy = data.targetY - p.y;
+        const angle = Math.atan2(dy, dx);
+
+        let dmg = p.str;
+
+        if (data.skillId === "start") dmg *= 1.5;
+        if (data.skillId === "ult") dmg *= 3;
+
+        projectiles.push({
+            x: p.x,
+            y: p.y,
+            vx: Math.cos(angle) * 16,
+            vy: Math.sin(angle) * 16,
+            owner: socket.id,
+            room: p.room,
+            damage: dmg,
+            isAbility: true
+        });
+
+        p.cooldowns[data.key] = now + (data.skillId === "ult" ? 2500 : 800);
     });
 
     // -------- DISCONNECT --------
@@ -218,7 +259,6 @@ setInterval(() => {
                         p.x = 1000;
                         p.y = 1000;
                         p.hp = p.maxHp;
-                        p.xp = Math.max(0, p.xp - 20);
                     }
                 }
             }
@@ -232,7 +272,7 @@ setInterval(() => {
         pr.x += pr.vx;
         pr.y += pr.vy;
 
-        // hit monsters
+        // MONSTERS HIT
         monsters.forEach(m => {
             if (!m.alive || m.room !== pr.room) return;
 
@@ -241,14 +281,14 @@ setInterval(() => {
                 projectiles.splice(i, 1);
 
                 if (m.hp <= 0) {
-                    m.alive = false;
+                    m.alive = true;
+                    m.hp = m.maxHp;
 
                     const owner = players[pr.owner];
                     if (owner) {
                         owner.gold += m.gold;
                         owner.xp += m.xp;
 
-                        // LEVEL UP
                         if (owner.xp >= owner.xpToNext) {
                             owner.level++;
                             owner.xp = 0;
@@ -256,15 +296,11 @@ setInterval(() => {
                             owner.skillPoints++;
                         }
                     }
-
-                    setTimeout(() => {
-                        m.alive = true;
-                        m.hp = m.maxHp;
-                    }, 8000);
                 }
             }
         });
 
+        // REMOVE OUT OF BOUNDS
         if (pr.x < 0 || pr.y < 0 || pr.x > 2000 || pr.y > 2000) {
             projectiles.splice(i, 1);
         }
@@ -273,7 +309,8 @@ setInterval(() => {
     io.emit("update", {
         players,
         monsters,
-        projectiles
+        projectiles,
+        portals: PORTALS
     });
 
 }, 1000 / 30);
