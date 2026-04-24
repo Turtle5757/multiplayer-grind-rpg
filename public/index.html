@@ -4,172 +4,158 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Evolution PVP | RPG</title>
-    <link rel="stylesheet" href="style.css">
 
+    <link rel="stylesheet" href="/style.css">
+
+    <!-- Socket MUST load before scripts -->
     <script src="/socket.io/socket.io.js"></script>
 </head>
 
 <body>
 
-<!-- ================= AUTH ================= -->
-<div id="auth-overlay" class="overlay">
-    <div class="menu-box">
-        <h1 class="brand-title">EVOLUTION PVP</h1>
+    <!-- ===================== AUTH ===================== -->
+    <div id="auth-overlay" class="overlay">
+        <div class="menu-box">
 
-        <input type="text" id="username" placeholder="Username">
-        <input type="password" id="password" placeholder="Password">
+            <h1 class="brand-title">EVOLUTION PVP</h1>
 
-        <div class="class-select-wrapper">
-            <label>Select Your Class:</label>
-            <select id="charClass">
-                <option value="Warrior">Warrior</option>
-                <option value="Archer">Archer</option>
-                <option value="Mage">Mage</option>
-            </select>
+            <input id="username" type="text" placeholder="Username">
+            <input id="password" type="password" placeholder="Password">
+
+            <div class="class-select-wrapper">
+                <label>Select Class</label>
+                <select id="charClass">
+                    <option value="Warrior">Warrior</option>
+                    <option value="Archer">Archer</option>
+                    <option value="Mage">Mage</option>
+                </select>
+            </div>
+
+            <button class="primary-btn" onclick="register()">
+                Register
+            </button>
+
+            <button class="secondary-btn" onclick="login()">
+                Login
+            </button>
+
+            <p id="auth-msg"></p>
+        </div>
+    </div>
+
+    <!-- ===================== HUD ===================== -->
+    <div id="hud">
+        <div class="bar-container">
+            <div id="hp-bar"></div>
         </div>
 
-        <button class="primary-btn" onclick="register()">Register</button>
-        <button class="secondary-btn" onclick="login()">Login</button>
+        <div class="bar-container">
+            <div id="mana-bar"></div>
+        </div>
 
-        <p id="auth-msg"></p>
-    </div>
-</div>
+        <div id="stats-panel">
+            <div id="stats-text">Loading...</div>
 
-<!-- ================= HUD ================= -->
-<div id="hud">
-    <div class="bar-container">
-        <div id="hp-bar"></div>
-    </div>
-
-    <div class="bar-container">
-        <div id="mana-bar"></div>
+            <button class="primary-btn hud-btn" onclick="toggleSkillTree()">
+                SKILL TREE [K]
+            </button>
+        </div>
     </div>
 
-    <div id="stats-panel">
-        <div id="stats-text">Loading...</div>
-        <button class="primary-btn hud-btn" onclick="toggleMenu('skill-tree')">
-            SKILL TREE [K]
+    <div id="gold-display">Gold: 0</div>
+
+    <!-- ===================== SKILL TREE ===================== -->
+    <div id="skill-tree" class="overlay-panel">
+
+        <h2 class="menu-header">SKILLS</h2>
+
+        <p class="sp-text">
+            Skill Points: <span id="sp-count">0</span>
+        </p>
+
+        <div class="skill-grid">
+
+            <div class="skill-node">
+                <h4 id="start-skill-name">Start</h4>
+                <button onclick="upgrade('start')">Upgrade</button>
+            </div>
+
+            <div class="skill-node">
+                <h4 id="ult-skill-name">Ultimate</h4>
+                <button onclick="upgrade('ult')">Upgrade</button>
+            </div>
+
+            <div class="skill-node">
+                <h4 id="skillA-name">Passive A</h4>
+                <p>Lv: <span id="skillA-lv">0</span></p>
+                <button onclick="upgrade('branchA')">Upgrade</button>
+            </div>
+
+            <div class="skill-node">
+                <h4 id="skillB-name">Passive B</h4>
+                <p>Lv: <span id="skillB-lv">0</span></p>
+                <button onclick="upgrade('branchB')">Upgrade</button>
+            </div>
+
+        </div>
+
+        <button class="close-btn" onclick="toggleSkillTree()">
+            CLOSE
         </button>
-    </div>
-</div>
-
-<div id="gold-display">Gold: 0</div>
-
-<!-- ================= SKILL TREE ================= -->
-<div id="skill-tree" class="overlay-panel">
-    <h2 class="menu-header">CLASS EVOLUTION</h2>
-
-    <p class="sp-text">
-        Skill Points: <span id="sp-count">0</span>
-    </p>
-
-    <div class="skill-grid">
-
-        <div class="skill-node">
-            <h4 id="start-skill-name">Skill</h4>
-            <button class="upgrade-btn" onclick="socket.emit('upgradeSkill','start')">
-                Upgrade
-            </button>
-        </div>
-
-        <div class="skill-node">
-            <h4 id="ult-skill-name">Ultimate</h4>
-            <button class="upgrade-btn" onclick="socket.emit('upgradeSkill','ult')">
-                Upgrade
-            </button>
-        </div>
-
-        <div class="skill-node">
-            <h4 id="skillA-name">Passive A</h4>
-            <button class="upgrade-btn passive" onclick="socket.emit('upgradeSkill','branchA')">
-                Upgrade
-            </button>
-        </div>
-
-        <div class="skill-node">
-            <h4 id="skillB-name">Passive B</h4>
-            <button class="upgrade-btn passive" onclick="socket.emit('upgradeSkill','branchB')">
-                Upgrade
-            </button>
-        </div>
 
     </div>
 
-    <button class="close-btn" onclick="toggleMenu('skill-tree')">
-        CLOSE
-    </button>
-</div>
+    <div id="controls-hint">
+        WASD Move | Click Attack | Q/E Skills | K Menu
+    </div>
 
-<!-- ================= GAME ================= -->
-<canvas id="gameCanvas"></canvas>
+    <canvas id="gameCanvas"></canvas>
 
-<div id="controls-hint">
-    WASD Move | Click Attack | K Skill Tree
-</div>
+    <!-- ===================== GAME SCRIPT ===================== -->
+    <script src="/script.js"></script>
 
-<!-- ================= SCRIPTS ================= -->
-<script src="script.js"></script>
+    <!-- ===================== AUTH HELPERS ===================== -->
+    <script>
+        const socket = io();
 
-<script>
-// ================= SOCKET SAFE INIT =================
-let socket = null;
+        function register() {
+            socket.emit("register", {
+                name: username.value,
+                password: password.value,
+                charClass: charClass.value
+            });
+        }
 
-function waitForSocket(cb) {
-    if (window.socket) return cb(window.socket);
-    setTimeout(() => waitForSocket(cb), 50);
-}
+        function login() {
+            socket.emit("login", {
+                name: username.value,
+                password: password.value
+            });
+        }
 
-waitForSocket((s) => {
-    socket = s;
-});
+        function toggleSkillTree() {
+            const el = document.getElementById("skill-tree");
+            el.style.display = (el.style.display === "block") ? "none" : "block";
+        }
 
-// ================= AUTH FUNCTIONS =================
-function register() {
-    if (!socket) return;
+        socket.on("authError", (msg) => {
+            authMsg.innerText = msg;
+            authMsg.style.color = "red";
+        });
 
-    socket.emit("register", {
-        name: document.getElementById("username").value,
-        password: document.getElementById("password").value,
-        charClass: document.getElementById("charClass").value
-    });
-}
+        socket.on("authMessage", (msg) => {
+            authMsg.innerText = msg;
+            authMsg.style.color = "lime";
+        });
 
-function login() {
-    if (!socket) return;
+        socket.on("init", () => {
+            document.getElementById("auth-overlay").style.display = "none";
+        });
 
-    socket.emit("login", {
-        name: document.getElementById("username").value,
-        password: document.getElementById("password").value
-    });
-}
-
-// ================= UI RESPONSES =================
-if (window.socket) {
-
-    socket.on("authError", (msg) => {
-        const el = document.getElementById("auth-msg");
-        el.style.color = "red";
-        el.innerText = msg;
-    });
-
-    socket.on("authMessage", (msg) => {
-        const el = document.getElementById("auth-msg");
-        el.style.color = "lime";
-        el.innerText = msg;
-    });
-
-    socket.on("init", () => {
-        document.getElementById("auth-overlay").style.display = "none";
-    });
-}
-
-// ================= KEY TOGGLE =================
-window.addEventListener("keydown", (e) => {
-    if (e.key.toLowerCase() === "k") {
-        toggleMenu("skill-tree");
-    }
-});
-</script>
+        window.addEventListener("keydown", (e) => {
+            if (e.key.toLowerCase() === "k") toggleSkillTree();
+        });
+    </script>
 
 </body>
 </html>
