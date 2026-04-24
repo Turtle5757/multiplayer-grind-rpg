@@ -1,15 +1,30 @@
 const express = require("express");
+const http = require("http");
 const fs = require("fs");
+const socketio = require("socket.io");
+
 const app = express();
-const http = require("http").Server(app);
-const io = require("socket.io")(http);
+const server = http.createServer(app);
+
+// ===================== SOCKET FIX (IMPORTANT) =====================
+const io = socketio(server, {
+    cors: {
+        origin: "*"
+    },
+    transports: ["polling", "websocket"] // IMPORTANT for Render stability
+});
 
 app.use(express.static("public"));
 
+// ===================== PORT (RENDER FIX) =====================
+const PORT = process.env.PORT || 3000;
+
+// ===================== FILE STORAGE =====================
 const USERS_FILE = "./users.json";
 
-// ===================== LOAD USERS =====================
 let users = {};
+let players = {};
+let projectiles = [];
 
 function loadUsers() {
     try {
@@ -20,7 +35,7 @@ function loadUsers() {
             fs.writeFileSync(USERS_FILE, "{}");
         }
     } catch (err) {
-        console.log("Error loading users:", err);
+        console.log("User load error:", err);
         users = {};
     }
 }
@@ -31,20 +46,17 @@ function saveUsers() {
 
 loadUsers();
 
-// ===================== GAME STATE =====================
-let players = {};
-let projectiles = [];
-
+// ===================== PORTALS =====================
 const PORTALS = [
     { fromRoom: "hub", toRoom: "gym", x: 100, y: 1000, targetX: 1800, targetY: 1000, color: "#e67e22", label: "GYM" },
     { fromRoom: "hub", toRoom: "lake", x: 1900, y: 1000, targetX: 200, targetY: 1000, color: "#3498db", label: "LAKE" },
     { fromRoom: "hub", toRoom: "shrine", x: 1000, y: 100, targetX: 1000, targetY: 1800, color: "#2ecc71", label: "SHRINE" }
 ];
 
-// ===================== PLAYER CREATION =====================
-function createPlayer(socketId, name, u) {
+// ===================== PLAYER TEMPLATE =====================
+function createPlayer(id, name, u) {
     return {
-        id: socketId,
+        id,
         name,
         charClass: u.charClass,
 
@@ -58,7 +70,6 @@ function createPlayer(socketId, name, u) {
         maxMana: 100,
 
         gold: u.gold || 0,
-
         str: u.str,
         def: u.def,
         spd: u.spd,
@@ -79,16 +90,16 @@ function createPlayer(socketId, name, u) {
 
 // ===================== SOCKET =====================
 io.on("connection", (socket) => {
-
-    console.log("CONNECTED:", socket.id);
+    console.log("Connected:", socket.id);
 
     // ---------------- REGISTER ----------------
     socket.on("register", (data) => {
-        console.log("REGISTER:", data);
+        if (!data) return;
 
         const name = (data.name || "").trim();
+        const pass = data.password;
 
-        if (!name || !data.password) {
+        if (!name || !pass) {
             socket.emit("authError", "Missing fields");
             return;
         }
@@ -99,7 +110,7 @@ io.on("connection", (socket) => {
         }
 
         users[name] = {
-            password: data.password,
+            password: pass,
             charClass: data.charClass || "Warrior",
 
             str: 10,
@@ -117,16 +128,15 @@ io.on("connection", (socket) => {
         };
 
         saveUsers();
-
-        socket.emit("authMessage", "Registered & Saved!");
+        socket.emit("authMessage", "Registered successfully");
     });
 
     // ---------------- LOGIN ----------------
     socket.on("login", (data) => {
-        console.log("LOGIN:", data);
+        if (!data) return;
 
         const name = (data.name || "").trim();
-        const pass = data.password || "";
+        const pass = data.password;
 
         const u = users[name];
 
@@ -148,15 +158,15 @@ io.on("connection", (socket) => {
             self: players[socket.id]
         });
 
-        console.log("LOGIN SUCCESS:", name);
+        console.log("Login success:", name);
     });
 
     // ---------------- MOVE ----------------
     socket.on("move", (data) => {
         const p = players[socket.id];
-        if (!p) return;
+        if (!p || !data) return;
 
-        const k = data.keys;
+        const k = data.keys || {};
 
         if (k.w) p.y -= p.spd;
         if (k.s) p.y += p.spd;
@@ -176,20 +186,19 @@ io.on("connection", (socket) => {
     // ---------------- DISCONNECT ----------------
     socket.on("disconnect", () => {
         delete players[socket.id];
+        console.log("Disconnected:", socket.id);
     });
 });
 
 // ===================== GAME LOOP =====================
 setInterval(() => {
-
     io.emit("update", {
         players,
         projectiles
     });
-
 }, 1000 / 30);
 
-// ===================== START =====================
-http.listen(3000, () => {
-    console.log("Server running on port 3000");
+// ===================== START SERVER =====================
+server.listen(PORT, () => {
+    console.log("Server running on port", PORT);
 });
