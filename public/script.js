@@ -10,11 +10,7 @@ let canvas = document.getElementById('gameCanvas');
 let ctx = canvas.getContext('2d');
 
 // --- DYNAMIC KEY BINDS ---
-// Skills must be unlocked in the tree before these work
-let myBinds = {
-    'Q': 'start', // Default slot for starting skill
-    'E': 'ult'    // Default slot for ultimate
-};
+let myBinds = { 'Q': 'start', 'E': 'ult' };
 
 // --- INPUT TRACKING ---
 let keys = { w: false, a: false, s: false, d: false };
@@ -47,61 +43,76 @@ socket.on('update', (data) => {
 });
 
 // --- INPUT LISTENERS ---
+
+// Movement Keys
 window.addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase();
-    if (keys.hasOwnProperty(k)) keys[k] = true;
+    if (keys.hasOwnProperty(k)) {
+        keys[k] = true;
+        sendMove();
+    }
 
-    // Trigger Bound Skills
+    // Ability Usage (Q/E)
     const pressed = e.key.toUpperCase();
     if (myBinds[pressed]) {
         const skillId = myBinds[pressed];
-        // Only trigger if player has actually unlocked/upgraded the skill
         if (me && me.upgrades[skillId] > 0) {
-            socket.emit('useAbility', { key: pressed, skillId: skillId });
+            // Send world coordinates of mouse so ability fires toward cursor
+            const camX = me.x - canvas.width / 2;
+            const camY = me.y - canvas.height / 2;
+            socket.emit('useAbility', { 
+                key: pressed, 
+                skillId: skillId,
+                targetX: mouseX + camX,
+                targetY: mouseY + camY
+            });
         }
     }
-    sendMove();
 });
 
 window.addEventListener('keyup', (e) => {
     const k = e.key.toLowerCase();
-    if (keys.hasOwnProperty(k)) keys[k] = false;
-    sendMove();
+    if (keys.hasOwnProperty(k)) {
+        keys[k] = false;
+        sendMove();
+    }
 });
 
+// Cursor Tracking
 window.addEventListener('mousemove', (e) => {
     mouseX = e.clientX;
     mouseY = e.clientY;
-    sendMove();
 });
 
-window.addEventListener('mousedown', () => {
-    socket.emit('attack');
+// Click to Attack
+window.addEventListener('mousedown', (e) => {
+    if (!me || document.getElementById('skill-tree').style.display === 'block') return;
+    
+    // Calculate World Coordinates (Player Position + Offset from Screen Center)
+    const camX = me.x - canvas.width / 2;
+    const camY = me.y - canvas.height / 2;
+    
+    socket.emit('attack', { 
+        x: e.clientX + camX, 
+        y: e.clientY + camY 
+    });
 });
 
 function sendMove() {
     if (!me) return;
-    const angle = Math.atan2(mouseY - canvas.height / 2, mouseX - canvas.width / 2);
-    socket.emit('move', { keys, angle });
+    socket.emit('move', { keys });
 }
 
-// --- UI & SKILL TREE LOGIC ---
+// --- UI HELPERS ---
 function toggleMenu(id) {
     const menu = document.getElementById(id);
     menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'block' : 'none';
 }
 
 function bindSkill(skillId, key) {
-    if (!me || me.upgrades[skillId] === 0) {
-        alert("Unlock this skill first!");
-        return;
-    }
-    // Remove skill from other keys to prevent double-binding
-    for (let k in myBinds) {
-        if (myBinds[k] === skillId) myBinds[k] = null;
-    }
+    if (!me || me.upgrades[skillId] === 0) return;
+    for (let k in myBinds) { if (myBinds[k] === skillId) myBinds[k] = null; }
     myBinds[key] = skillId;
-    console.log(`${skillId} bound to ${key}`);
 }
 
 function updateStatsUI() {
@@ -116,7 +127,6 @@ function updateSkillTreeUI() {
     const spCount = document.getElementById('sp-count');
     if (spCount) spCount.innerText = me.skillPoints;
 
-    // Direct Class-to-Name Mapping
     const skillNames = {
         Warrior: { start: "Slash Wave", ult: "Berserk Rage", a: "Vampirism", b: "Juggernaut" },
         Archer: { start: "Piercing Bolt", ult: "Shadow Dash", a: "Eagle Eye", b: "Multishot" },
@@ -135,7 +145,7 @@ function updateSkillTreeUI() {
     document.getElementById('skillB-lv').innerText = me.upgrades.branchB;
 }
 
-// --- RENDERING ENGINE ---
+// --- RENDERING ---
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (!me) {
@@ -146,76 +156,58 @@ function draw() {
     const camX = me.x - canvas.width / 2;
     const camY = me.y - canvas.height / 2;
 
-    // 1. Draw World / Floor
-    ctx.fillStyle = '#111'; 
-    ctx.fillRect(-camX, -camY, 2000, 2000); 
+    // Background
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 2. Draw Portals (Filtered by current room)
+    // Portals
     portals.forEach(p => {
         if (p.fromRoom === me.room) {
             ctx.beginPath();
             ctx.arc(p.x - camX, p.y - camY, 40, 0, Math.PI * 2);
             ctx.fillStyle = p.color;
-            ctx.globalAlpha = 0.6;
+            ctx.globalAlpha = 0.5;
             ctx.fill();
             ctx.globalAlpha = 1.0;
             ctx.fillStyle = "#fff";
-            ctx.textAlign = 'center';
-            ctx.fillText(p.label, p.x - camX, p.y - camY - 50);
+            ctx.fillText(p.label, p.x - camX - 20, p.y - camY - 50);
         }
     });
 
-    // 3. Draw Monsters (Filtered by current room)
+    // Monsters
     monsters.forEach(m => {
         if (!m.isAlive || m.room !== me.room) return;
         ctx.fillStyle = m.isBoss ? '#ff0000' : '#8e44ad';
         ctx.beginPath();
         ctx.arc(m.x - camX, m.y - camY, m.isBoss ? 80 : 30, 0, Math.PI * 2);
         ctx.fill();
-        
-        // Monster Health Bar
-        ctx.fillStyle = '#444';
-        ctx.fillRect(m.x - camX - 30, m.y - camY - 50, 60, 6);
-        ctx.fillStyle = '#e74c3c';
-        ctx.fillRect(m.x - camX - 30, m.y - camY - 50, (m.hp / m.maxHp) * 60, 6);
     });
 
-    // 4. Draw Projectiles (Filtered by current room)
+    // Projectiles
     projectiles.forEach(p => {
         if (p.room !== me.room) return;
-        ctx.fillStyle = p.isSpecial ? '#f1c40f' : '#ecf0f1';
+        ctx.fillStyle = p.isSpecial ? '#f1c40f' : '#fff';
         ctx.beginPath();
         ctx.arc(p.x - camX, p.y - camY, p.isSpecial ? 8 : 4, 0, Math.PI * 2);
         ctx.fill();
     });
 
-    // 5. Draw Players (Filtered by current room)
+    // Players (No Rotation)
     Object.values(players).forEach(p => {
         if (p.room !== me.room) return;
 
-        ctx.save();
-        ctx.translate(p.x - camX, p.y - camY);
-        ctx.rotate(p.angle);
-        
-        // Static Colors Based on Class
-        if (p.charClass === 'Warrior') ctx.fillStyle = '#e67e22';
-        else if (p.charClass === 'Archer') ctx.fillStyle = '#2ecc71';
-        else if (p.charClass === 'Mage') ctx.fillStyle = '#9b59b6';
-        else ctx.fillStyle = '#fff';
+        const colors = { Warrior: '#e67e22', Archer: '#2ecc71', Mage: '#9b59b6' };
+        ctx.fillStyle = colors[p.charClass] || '#fff';
+        ctx.fillRect(p.x - camX - 20, p.y - camY - 20, 40, 40);
 
-        ctx.fillRect(-20, -20, 40, 40);
-        ctx.restore();
-
-        // UI: Name & Health
+        // Name & Health
         ctx.fillStyle = '#fff';
         ctx.textAlign = 'center';
-        ctx.font = "14px Arial";
         ctx.fillText(p.name, p.x - camX, p.y - camY - 45);
-        
-        ctx.fillStyle = '#333';
-        ctx.fillRect(p.x - camX - 25, p.y - camY - 35, 50, 6);
-        ctx.fillStyle = '#2ecc71';
-        ctx.fillRect(p.x - camX - 25, p.y - camY - 35, (p.hp / p.maxHp) * 50, 6);
+        ctx.fillStyle = '#f00';
+        ctx.fillRect(p.x - camX - 20, p.y - camY - 35, 40, 4);
+        ctx.fillStyle = '#0f0';
+        ctx.fillRect(p.x - camX - 20, p.y - camY - 35, (p.hp / p.maxHp) * 40, 4);
     });
 
     requestAnimationFrame(draw);
