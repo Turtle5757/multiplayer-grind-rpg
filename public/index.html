@@ -5,31 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Evolution PVP | RPG</title>
 
+    <!-- IMPORTANT: correct paths for Render -->
     <link rel="stylesheet" href="/style.css">
 
-    <!-- Socket MUST load before scripts -->
+    <!-- Socket MUST load first -->
     <script src="/socket.io/socket.io.js"></script>
 </head>
 
 <body>
 
-    <!-- ===================== AUTH ===================== -->
+    <!-- ===================== LOGIN ===================== -->
     <div id="auth-overlay" class="overlay">
         <div class="menu-box">
 
             <h1 class="brand-title">EVOLUTION PVP</h1>
 
-            <input id="username" type="text" placeholder="Username">
+            <input id="username" placeholder="Username">
             <input id="password" type="password" placeholder="Password">
 
-            <div class="class-select-wrapper">
-                <label>Select Class</label>
-                <select id="charClass">
-                    <option value="Warrior">Warrior</option>
-                    <option value="Archer">Archer</option>
-                    <option value="Mage">Mage</option>
-                </select>
-            </div>
+            <select id="charClass">
+                <option value="Warrior">Warrior</option>
+                <option value="Archer">Archer</option>
+                <option value="Mage">Mage</option>
+            </select>
 
             <button class="primary-btn" onclick="register()">
                 Register
@@ -45,6 +43,7 @@
 
     <!-- ===================== HUD ===================== -->
     <div id="hud">
+
         <div class="bar-container">
             <div id="hp-bar"></div>
         </div>
@@ -56,7 +55,7 @@
         <div id="stats-panel">
             <div id="stats-text">Loading...</div>
 
-            <button class="primary-btn hud-btn" onclick="toggleSkillTree()">
+            <button class="primary-btn" onclick="toggleSkillTree()">
                 SKILL TREE [K]
             </button>
         </div>
@@ -114,7 +113,7 @@
     <!-- ===================== GAME SCRIPT ===================== -->
     <script src="/script.js"></script>
 
-    <!-- ===================== AUTH HELPERS ===================== -->
+    <!-- ===================== AUTH WRAPPERS ===================== -->
     <script>
         const socket = io();
 
