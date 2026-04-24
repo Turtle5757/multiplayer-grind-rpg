@@ -5,54 +5,39 @@ const io = require('socket.io')(http);
 
 app.use(express.static('public'));
 
-// --- CONFIGURATION ---
+// --- GLOBAL SETTINGS ---
 const WORLD_SIZE = 2000;
-const TICK_RATE = 30;
-const PVP_ZONE = 'graveyard'; 
-const BOSS_ZONE = 'boss_room';
+const TICK_RATE = 30; // 30ms updates (~33 FPS)
 
+// --- ITEM & GEAR DATA ---
 const GEAR_DATA = {
-    sword: { stat: 'str', tiers: [
-        { name: "Wooden Stick", mult: 1.0, cost: 0 },
-        { name: "Rusty Dagger", mult: 1.2, cost: 150 },
-        { name: "Iron Broadsword", mult: 1.5, cost: 500 },
-        { name: "Diamond Blade", mult: 2.0, cost: 1200 },
-        { name: "Dragon Slayer", mult: 3.0, cost: 5000 }
-    ]},
-    boots: { stat: 'spd', tiers: [
-        { name: "Old Rags", mult: 1.0, cost: 0 },
-        { name: "Leather Sandals", mult: 1.1, cost: 200 },
-        { name: "Reinforced Boots", mult: 1.3, cost: 600 },
-        { name: "Swift Greaves", mult: 1.6, cost: 1500 },
-        { name: "Hermes' Wings", mult: 2.2, cost: 4500 }
-    ]},
-    armor: { stat: 'def', tiers: [
-        { name: "Tattered Shirt", mult: 1.0, cost: 0 },
-        { name: "Leather Tunic", mult: 1.2, cost: 300 },
-        { name: "Chainmail", mult: 1.5, cost: 800 },
-        { name: "Plate Armor", mult: 2.0, cost: 2000 },
-        { name: "Guardian Shell", mult: 3.5, cost: 6000 }
-    ]}
+    sword: [1.0, 1.2, 1.5, 2.0, 3.0], // STR Multipliers
+    armor: [1.0, 1.2, 1.5, 2.0, 3.5], // DEF Multipliers
+    boots: [1.0, 1.1, 1.3, 1.6, 2.2]  // SPD Multipliers
 };
 
-const rooms = {
+// --- WORLD STRUCTURE ---
+const ROOMS = {
     hub: { name: "Village", bg: "#15220d" },
-    gym: { name: "The Gym (STR)", bg: "#3d2b1f" },
-    lake: { name: "Swift Lake (SPD)", bg: "#1a3a4a" },
-    shrine: { name: "Meditation Shrine (DEF)", bg: "#1b2e2b" },
-    shop: { name: "Blacksmith's Forge", bg: "#2c3e50" },
-    graveyard: { name: "Graveyard", bg: "#1a1a1a" },
-    boss_room: { name: "The Forbidden Lair", bg: "#2d0000" }
+    gym: { name: "Warrior's Gym", bg: "#3d2b1f" },
+    lake: { name: "Swift Lake", bg: "#1a3a4a" },
+    shrine: { name: "Meditation Shrine", bg: "#1b2e2b" },
+    shop: { name: "Blacksmith", bg: "#2c3e50" },
+    graveyard: { name: "Cursed Graveyard", bg: "#1a1a1a" },
+    boss_room: { name: "The Void", bg: "#2d0000" }
 };
 
 const PORTALS = [
-    { fromRoom: 'hub', toRoom: 'gym', x: 100, y: 1000, targetX: 1800, targetY: 1000, color: '#e67e22', label: 'GYM' },
-    { fromRoom: 'hub', toRoom: 'lake', x: 1900, y: 1000, targetX: 1800, targetY: 1000, color: '#3498db', label: 'LAKE' },
-    { fromRoom: 'hub', toRoom: 'shrine', x: 1000, y: 100, targetX: 1000, targetY: 1800, color: '#2ecc71', label: 'SHRINE' },
-    { fromRoom: 'hub', toRoom: 'shop', x: 1000, y: 1900, targetX: 1000, targetY: 200, color: '#f1c40f', label: 'BLACKSMITH' },
+    // Hub Portals
+    { fromRoom: 'hub', toRoom: 'gym', x: 100, y: 1000, targetX: 1800, targetY: 1000, color: '#e67e22', label: 'STR GYM' },
+    { fromRoom: 'hub', toRoom: 'lake', x: 1900, y: 1000, targetX: 1800, targetY: 1000, color: '#3498db', label: 'SPD LAKE' },
+    { fromRoom: 'hub', toRoom: 'shrine', x: 1000, y: 100, targetX: 1000, targetY: 1800, color: '#2ecc71', label: 'DEF SHRINE' },
+    { fromRoom: 'hub', toRoom: 'shop', x: 1000, y: 1900, targetX: 1000, targetY: 200, color: '#f1c40f', label: 'SHOP' },
     { fromRoom: 'hub', toRoom: 'graveyard', x: 1800, y: 200, targetX: 1000, targetY: 1850, color: '#555', label: 'DUNGEON' },
-    { fromRoom: 'graveyard', toRoom: 'boss_room', x: 1000, y: 100, targetX: 1000, targetY: 1800, color: '#ff0000', label: 'BOSS LAIR' },
+    // Combat Portals
+    { fromRoom: 'graveyard', toRoom: 'boss_room', x: 1000, y: 100, targetX: 1000, targetY: 1800, color: '#ff0000', label: 'BOSS GATE' },
     { fromRoom: 'boss_room', toRoom: 'graveyard', x: 1000, y: 1900, targetX: 1000, targetY: 250, color: '#fff', label: 'EXIT' },
+    // Back to Hub Portals
     { fromRoom: 'gym', toRoom: 'hub', x: 1900, y: 1000, targetX: 250, targetY: 1000, color: '#fff', label: 'EXIT' },
     { fromRoom: 'lake', toRoom: 'hub', x: 1900, y: 1000, targetX: 1750, targetY: 1000, color: '#fff', label: 'EXIT' },
     { fromRoom: 'shrine', toRoom: 'hub', x: 1000, y: 1900, targetX: 1000, targetY: 250, color: '#fff', label: 'EXIT' },
@@ -60,218 +45,290 @@ const PORTALS = [
     { fromRoom: 'graveyard', toRoom: 'hub', x: 1000, y: 1950, targetX: 1700, targetY: 350, color: '#fff', label: 'EXIT' }
 ];
 
-let users = {}; 
-let players = {};
+// --- ENGINE STATE ---
+let users = {}; // Saved Accounts
+let players = {}; // Active sessions
 let projectiles = [];
 let monsters = [
-    { id: 1, x: 500, y: 500, hp: 200, maxHp: 200, str: 25, gold: 30, room: 'graveyard', isAlive: true, spd: 2 },
-    { id: 2, x: 1500, y: 500, hp: 200, maxHp: 200, str: 25, gold: 30, room: 'graveyard', isAlive: true, spd: 2 },
+    { id: 1, x: 500, y: 500, hp: 300, maxHp: 300, str: 30, gold: 40, room: 'graveyard', isAlive: true, spd: 2.2 },
+    { id: 2, x: 1500, y: 1500, hp: 300, maxHp: 300, str: 30, gold: 40, room: 'graveyard', isAlive: true, spd: 2.2 },
     { 
-        id: 'BOSS', x: 1000, y: 1000, hp: 5000, maxHp: 5000, str: 100, gold: 1500, 
-        room: 'boss_room', isAlive: true, spd: 1.5, isBoss: true, 
+        id: 'BOSS', x: 1000, y: 1000, hp: 6000, maxHp: 6000, str: 120, gold: 2000, 
+        room: 'boss_room', isAlive: true, spd: 1.8, isBoss: true, 
         lastRingAtk: 0, lastSpawnAtk: 0 
     }
 ];
 
-function respawn(p) { p.hp = p.maxHp; p.mana = p.maxMana; p.room = 'hub'; p.x = 1000; p.y = 1000; }
+// --- HELPER FUNCTIONS ---
+function respawn(p) {
+    p.hp = p.maxHp;
+    p.mana = p.maxMana;
+    p.room = 'hub';
+    p.x = 1000;
+    p.y = 1000;
+}
 
+// --- NETWORK HANDLERS ---
 io.on('connection', (socket) => {
+    
+    // Account Registration
     socket.on('register', (data) => {
         if (!users[data.name]) {
             users[data.name] = { 
                 password: data.password, 
                 charClass: data.charClass || 'Warrior',
-                str: 10, def: 5, spd: 4, gold: 0, 
-                gearLevels: { sword: 0, armor: 0, boots: 0 } 
+                str: 10, def: 5, spd: 4, gold: 0,
+                skillPoints: 1, 
+                upgrades: { start: 0, ult: 0, branchA: 0, branchB: 0 },
+                gear: { sword: 0, armor: 0, boots: 0 } 
             };
-            socket.emit('authMessage', 'Registered!');
-        } else socket.emit('authError', 'User exists.');
+            socket.emit('authMessage', 'Account Created!');
+        } else {
+            socket.emit('authError', 'Name taken.');
+        }
     });
 
+    // Login and Session Init
     socket.on('login', (data) => {
         const u = users[data.name];
         if (u && u.password === data.password) {
             players[socket.id] = {
-                id: socket.id, name: data.name, charClass: u.charClass,
-                x: 1000, y: 1000, hp: 100, maxHp: 100, 
-                mana: 100, maxMana: 100, energy: 100, room: 'hub',
-                str: u.str, def: u.def, spd: u.spd, gold: u.gold, gearLevels: u.gearLevels,
-                mults: { 
-                    str: GEAR_DATA.sword.tiers[u.gearLevels.sword].mult,
-                    def: GEAR_DATA.armor.tiers[u.gearLevels.armor].mult,
-                    spd: GEAR_DATA.boots.tiers[u.gearLevels.boots].mult
-                },
-                buffs: { str: 1.0 }, cooldowns: { Q: 0, E: 0 },
-                keys: { w: false, a: false, s: false, d: false }, angle: 0,
-                color: u.charClass === 'Warrior' ? '#e67e22' : (u.charClass === 'Archer' ? '#2ecc71' : '#9b59b6')
+                id: socket.id,
+                name: data.name,
+                charClass: u.charClass,
+                x: 1000, y: 1000, room: 'hub',
+                hp: 100 + (u.charClass === 'Warrior' ? u.upgrades.branchB * 50 : 0),
+                maxHp: 100 + (u.charClass === 'Warrior' ? u.upgrades.branchB * 50 : 0),
+                mana: 100,
+                maxMana: 100,
+                gold: u.gold,
+                str: u.str,
+                def: u.def,
+                spd: u.spd,
+                skillPoints: u.skillPoints,
+                upgrades: u.upgrades,
+                gear: u.gear,
+                buffs: { str: 1.0 },
+                cooldowns: { Q: 0, E: 0 },
+                keys: { w: false, a: false, s: false, d: false },
+                angle: 0
             };
-            socket.emit('init', { id: socket.id, rooms, portals: PORTALS });
-        } else socket.emit('authError', 'Invalid Login.');
+            socket.emit('init', { id: socket.id, rooms: ROOMS, portals: PORTALS });
+        } else {
+            socket.emit('authError', 'Invalid credentials.');
+        }
     });
 
+    // Skill Tree Logic
+    socket.on('upgradeSkill', (branch) => {
+        const p = players[socket.id];
+        if (!p || p.skillPoints <= 0) return;
+        if (p.upgrades[branch] < 3) {
+            p.upgrades[branch]++;
+            p.skillPoints--;
+            // Update stats immediately if it's the Juggernaut HP upgrade
+            if (p.charClass === 'Warrior' && branch === 'branchB') {
+                p.maxHp += 50;
+                p.hp += 50;
+            }
+        }
+    });
+
+    // Movement & Portals
     socket.on('move', (data) => {
-        const p = players[socket.id]; if (!p) return;
-        p.keys = data.keys; p.angle = data.angle;
-        
-        let spdPassive = (p.charClass === 'Archer') ? 1.3 : 1.0;
-        let speed = p.spd * p.mults.spd * spdPassive;
-        
-        if (p.keys.w) p.y -= speed; if (p.keys.s) p.y += speed;
-        if (p.keys.a) p.x -= speed; if (p.keys.d) p.x += speed;
-        p.x = Math.max(0, Math.min(p.x, WORLD_SIZE)); p.y = Math.max(0, Math.min(p.y, WORLD_SIZE));
-        
+        const p = players[socket.id];
+        if (!p) return;
+        p.keys = data.keys;
+        p.angle = data.angle;
+
+        let classSpeed = (p.charClass === 'Archer') ? 1.35 : 1.0;
+        let speed = p.spd * GEAR_DATA.boots[p.gear.boots] * classSpeed;
+
+        if (p.keys.w) p.y -= speed;
+        if (p.keys.s) p.y += speed;
+        if (p.keys.a) p.x -= speed;
+        if (p.keys.d) p.x += speed;
+
+        p.x = Math.max(0, Math.min(p.x, WORLD_SIZE));
+        p.y = Math.max(0, Math.min(p.y, WORLD_SIZE));
+
         PORTALS.forEach(pt => {
             if (p.room === pt.fromRoom && Math.hypot(p.x - pt.x, p.y - pt.y) < 80) {
-                p.room = pt.toRoom; p.x = pt.targetX; p.y = pt.targetY;
+                p.room = pt.toRoom;
+                p.x = pt.targetX;
+                p.y = pt.targetY;
             }
         });
     });
 
+    // Melee vs Ranged Combat
     socket.on('attack', () => {
-        const p = players[socket.id]; if (!p) return;
-        if (p.room !== PVP_ZONE && p.room !== BOSS_ZONE) return; 
-        if (Date.now() - (p.lastAtk || 0) < 400) return;
+        const p = players[socket.id];
+        if (!p || p.room === 'hub') return;
+        if (Date.now() - (p.lastAtk || 0) < 350) return; // Attack speed cap
         p.lastAtk = Date.now();
 
+        let classDmg = (p.charClass === 'Mage') ? 1.4 : 1.0;
+        let damage = p.str * GEAR_DATA.sword[p.gear.sword] * p.buffs.str * classDmg;
+
         if (p.charClass === 'Warrior') {
-            // MELEE LOGIC: Hit monsters in 120px range
             monsters.forEach(m => {
-                if (m.isAlive && m.room === p.room && Math.hypot(p.x - m.x, p.y - m.y) < 125) {
-                    m.hp -= p.str * p.mults.str * p.buffs.str;
+                if (m.isAlive && m.room === p.room && Math.hypot(p.x - m.x, p.y - m.y) < 130) {
+                    m.hp -= damage;
+                    // Lifesteal Passive
+                    if (p.upgrades.branchA > 0) {
+                        p.hp = Math.min(p.maxHp, p.hp + (damage * (p.upgrades.branchA * 0.07)));
+                    }
                     if (m.hp <= 0) {
-                        m.isAlive = false; p.gold += m.gold;
-                        if (!m.isMinion) setTimeout(() => { m.isAlive = true; m.hp = m.maxHp; }, 10000);
+                        m.isAlive = false;
+                        p.gold += m.gold;
+                        if (m.isBoss) p.skillPoints += 3;
+                        setTimeout(() => { m.isAlive = true; m.hp = m.maxHp; }, 12000);
                     }
                 }
             });
-            socket.emit('swingEffect'); // Client can use this for a slash animation
+            socket.emit('swingEffect');
         } else {
-            // RANGED LOGIC: Archer or Mage (Mage deals 1.3x damage)
-            let dmgMult = (p.charClass === 'Mage') ? 1.3 : 1.0;
-            projectiles.push({ 
-                x: p.x, y: p.y, vx: Math.cos(p.angle)*16, vy: Math.sin(p.angle)*16, 
-                owner: socket.id, room: p.room, damage: p.str * p.mults.str * p.buffs.str * dmgMult 
-            });
+            // Multishot Logic
+            let mult = (p.charClass === 'Archer' && Math.random() < p.upgrades.branchB * 0.25) ? 2 : 1;
+            for (let i = 0; i < mult; i++) {
+                projectiles.push({ 
+                    x: p.x, y: p.y, 
+                    vx: Math.cos(p.angle + (i * 0.12)) * 18, 
+                    vy: Math.sin(p.angle + (i * 0.12)) * 18, 
+                    owner: socket.id, room: p.room, damage: damage,
+                    slow: (p.charClass === 'Mage' ? p.upgrades.branchB * 0.2 : 0)
+                });
+            }
         }
     });
 
-    socket.on('useAbility', (key) => {
-        const p = players[socket.id]; if (!p || Date.now() < p.cooldowns[key] || (p.room !== PVP_ZONE && p.room !== BOSS_ZONE)) return;
-        
-        if (key === 'Q' && p.mana >= 20) {
-            projectiles.push({ x: p.x, y: p.y, vx: Math.cos(p.angle)*22, vy: Math.sin(p.angle)*22, owner: socket.id, room: p.room, damage: p.str*2.5, isSpecial: true });
-            p.mana -= 20; p.cooldowns.Q = Date.now() + 2000;
-        } else if (key === 'E' && p.mana >= 40) {
-            if (p.charClass === 'Warrior') { p.buffs.str = 1.6; setTimeout(() => { if(players[socket.id]) players[socket.id].buffs.str = 1.0; }, 5000); }
-            else if (p.charClass === 'Archer') { p.x += Math.cos(p.angle)*350; p.y += Math.sin(p.angle)*350; }
-            else if (p.charClass === 'Mage') { p.hp = Math.min(p.maxHp, p.hp + 50); }
-            p.mana -= 40; p.cooldowns.E = Date.now() + 8000;
+    // Activated Skill Binding & Logic
+    socket.on('useAbility', (data) => {
+        const p = players[socket.id];
+        const { key, skillId } = data; 
+        if (!p || Date.now() < p.cooldowns[key] || p.room === 'hub') return;
+        if (p.upgrades[skillId] <= 0) return;
+
+        if (skillId === 'start' && p.mana >= 25) {
+            let power = 2.0 + (p.upgrades.start * 0.6);
+            projectiles.push({ 
+                x: p.x, y: p.y, vx: Math.cos(p.angle)*24, vy: Math.sin(p.angle)*24, 
+                owner: socket.id, room: p.room, damage: p.str * power, isSpecial: true 
+            });
+            p.mana -= 25;
+            p.cooldowns[key] = Date.now() + 2500;
+        } 
+        else if (skillId === 'ult' && p.mana >= 50) {
+            if (p.charClass === 'Warrior') {
+                p.buffs.str = 1.7 + (p.upgrades.ult * 0.15);
+                setTimeout(() => { if (players[socket.id]) players[socket.id].buffs.str = 1.0; }, 6000);
+            } else if (p.charClass === 'Archer') {
+                let dash = 400 + (p.upgrades.ult * 60);
+                p.x += Math.cos(p.angle) * dash; p.y += Math.sin(p.angle) * dash;
+            } else if (p.charClass === 'Mage') {
+                p.hp = Math.min(p.maxHp, p.hp + 60 + (p.upgrades.ult * 30));
+            }
+            p.mana -= 50;
+            p.cooldowns[key] = Date.now() + 9000;
         }
     });
 
     socket.on('disconnect', () => {
         const p = players[socket.id];
         if (p) {
-            users[p.name] = { ...users[p.name], str: p.str, def: p.def, spd: p.spd, gold: p.gold, gearLevels: p.gearLevels };
+            users[p.name] = { 
+                ...users[p.name], 
+                str: p.str, def: p.def, spd: p.spd, gold: p.gold, 
+                skillPoints: p.skillPoints, upgrades: p.upgrades, gear: p.gear 
+            };
             delete players[socket.id];
         }
     });
 });
 
-// --- GAME LOOP ---
+// --- MAIN SERVER TICK ---
 setInterval(() => {
     const now = Date.now();
+    
     Object.values(players).forEach(p => {
-        p.mana = Math.min(p.maxMana, p.mana + 0.5); // Mana Regen
-        
-        // Specialty Training Multipliers (2x)
-        let strTrain = (p.charClass === 'Warrior') ? 2.0 : 1.0;
-        let spdTrain = (p.charClass === 'Archer') ? 2.0 : 1.0;
-        let defTrain = (p.charClass === 'Mage') ? 2.0 : 1.0;
+        // Mana Regeneration
+        let mRegen = 0.6 * (p.charClass === 'Mage' ? (1 + p.upgrades.branchA * 0.3) : 1.0);
+        p.mana = Math.min(p.maxMana, p.mana + mRegen);
 
-        if (p.room === 'gym') p.str += 0.05 * strTrain; 
-        if (p.room === 'lake' && (p.keys.w||p.keys.a||p.keys.s||p.keys.d)) p.spd += 0.001 * spdTrain; 
-        if (p.room === 'shrine' && !(p.keys.w||p.keys.a||p.keys.s||p.keys.d)) p.def += 0.02 * defTrain;
+        // Room-Based Training
+        let sT = (p.charClass === 'Warrior' ? 2.2 : 1.0);
+        let dT = (p.charClass === 'Mage' ? 2.2 : 1.0);
+        let vT = (p.charClass === 'Archer' ? 2.2 : 1.0);
 
+        if (p.room === 'gym') p.str += 0.06 * sT;
+        if (p.room === 'lake' && (p.keys.w || p.keys.a || p.keys.s || p.keys.d)) p.spd += 0.0012 * vT;
+        if (p.room === 'shrine' && !(p.keys.w || p.keys.a || p.keys.s || p.keys.d)) p.def += 0.025 * dT;
+
+        // Monster Aggro & AI
         monsters.forEach(m => {
             if (!m.isAlive || m.room !== p.room) return;
-            
-            let d = Math.hypot(p.x - m.x, p.y - m.y);
-            let aggroRange = m.isBoss ? 9999 : 600; 
+            let dist = Math.hypot(p.x - m.x, p.y - m.y);
+            let limit = m.isBoss ? 5000 : 700;
 
-            if (d < aggroRange) {
-                let a = Math.atan2(p.y - m.y, p.x - m.x);
-                let speedMult = 1.0;
-                let attackRateMult = 1.0;
+            if (dist < limit) {
+                let ang = Math.atan2(p.y - m.y, p.x - m.x);
+                let slowFactor = (m.slowUntil > now) ? 0.45 : 1.0;
+                m.x += Math.cos(ang) * (m.spd * slowFactor);
+                m.y += Math.sin(ang) * (m.spd * slowFactor);
 
-                if (m.isBoss) {
-                    const hpP = m.hp / m.maxHp;
-                    if (hpP < 0.25) { speedMult = 2.6; attackRateMult = 2.2; }
-                    else if (hpP < 0.50) { speedMult = 1.8; attackRateMult = 1.5; }
+                // Monster Collision Damage
+                if (dist < 68 && now - (m.lastHit || 0) > 1000) {
+                    let wBonus = (p.charClass === 'Warrior') ? 1.4 : 1.0;
+                    let finalDef = p.def * GEAR_DATA.armor[p.gear.armor] * wBonus;
+                    p.hp -= Math.max(8, m.str - (finalDef * 0.6));
+                    m.lastHit = now;
+                    if (p.hp <= 0) respawn(p);
                 }
 
-                m.x += Math.cos(a) * (m.spd * speedMult);
-                m.y += Math.sin(a) * (m.spd * speedMult);
-
+                // Boss Special Attacks
                 if (m.isBoss) {
-                    if (now - m.lastRingAtk > (3000 / attackRateMult)) {
+                    if (now - m.lastRingAtk > 4000) {
                         for (let i = 0; i < 12; i++) {
-                            let angle = (i / 12) * Math.PI * 2;
-                            projectiles.push({ x: m.x + Math.cos(angle)*120, y: m.y + Math.sin(angle)*120, vx: Math.cos(angle)*8, vy: Math.sin(angle)*8, owner: 'BOSS', room: m.room, damage: 40 });
+                            let rA = (i / 12) * Math.PI * 2;
+                            projectiles.push({ x: m.x, y: m.y, vx: Math.cos(rA)*10, vy: Math.sin(rA)*10, owner: 'BOSS', room: m.room, damage: 45 });
                         }
                         m.lastRingAtk = now;
                     }
-                    if (now - m.lastSpawnAtk > (10000 / attackRateMult)) {
-                        monsters.push({ id: now, x: m.x + (Math.random()*200-100), y: m.y + 200, hp: 100, maxHp: 100, str: 15, gold: 10, room: BOSS_ZONE, isAlive: true, spd: 3, isMinion: true });
-                        m.lastSpawnAtk = now;
-                    }
-                }
-
-                if (d < 65 && now - (m.lastAtk || 0) > 1000) {
-                    let defPassive = (p.charClass === 'Warrior') ? 1.3 : 1.0;
-                    p.hp -= Math.max(5, m.str - (p.def * p.mults.def * defPassive * 0.5));
-                    m.lastAtk = now;
-                    if (p.hp <= 0) respawn(p);
                 }
             }
         });
     });
 
+    // Projectile Movement & Collision
     for (let i = projectiles.length - 1; i >= 0; i--) {
-        let pr = projectiles[i]; pr.x += pr.vx; pr.y += pr.vy;
+        let pr = projectiles[i];
+        pr.x += pr.vx;
+        pr.y += pr.vy;
+
         monsters.forEach(m => {
-            if (pr.owner === 'BOSS') return;
-            if (m.isAlive && m.room === pr.room && Math.hypot(pr.x - m.x, pr.y - m.y) < 70) {
-                m.hp -= pr.damage; 
-                if (projectiles[i]) projectiles.splice(i, 1);
+            if (pr.owner !== 'BOSS' && m.isAlive && m.room === pr.room && Math.hypot(pr.x - m.x, pr.y - m.y) < 80) {
+                m.hp -= pr.damage;
+                if (pr.slow) m.slowUntil = now + 2500;
+                projectiles.splice(i, 1);
                 if (m.hp <= 0) {
-                    m.isAlive = false; 
-                    if (players[pr.owner]) players[pr.owner].gold += m.gold;
-                    if (!m.isMinion) setTimeout(() => { m.isAlive = true; m.hp = m.maxHp; }, 10000);
+                    m.isAlive = false;
+                    if (players[pr.owner]) {
+                        players[pr.owner].gold += m.gold;
+                        if (m.isBoss) players[pr.owner].skillPoints += 4;
+                    }
+                    setTimeout(() => { m.isAlive = true; m.hp = m.maxHp; }, 12000);
                 }
             }
         });
 
-        if (pr && projectiles[i]) {
-            for (let id in players) {
-                let target = players[id];
-                if (id !== pr.owner && target.room === pr.room && Math.hypot(pr.x - target.x, pr.y - target.y) < 45) {
-                    let defPassive = (target.charClass === 'Warrior') ? 1.3 : 1.0;
-                    target.hp -= Math.max(5, pr.damage - (target.def * target.mults.def * defPassive * 0.5));
-                    if (target.hp <= 0) {
-                        if (players[pr.owner]) {
-                            let stolen = Math.floor(target.gold * 0.20);
-                            players[pr.owner].gold += stolen; target.gold -= stolen;
-                        }
-                        respawn(target);
-                    }
-                    projectiles.splice(i, 1); break;
-                }
-            }
+        // Cleanup
+        if (pr && (pr.x < 0 || pr.x > WORLD_SIZE || pr.y < 0 || pr.y > WORLD_SIZE)) {
+            projectiles.splice(i, 1);
         }
-        if (pr && (pr.x < 0 || pr.x > WORLD_SIZE || pr.y < 0 || pr.y > WORLD_SIZE)) projectiles.splice(i, 1);
     }
+
     io.emit('update', { players, monsters, projectiles });
 }, TICK_RATE);
 
-http.listen(3000, () => console.log('Server Live :3000'));
+http.listen(3000, () => console.log('FULL SERVER ONLINE AT PORT 3000'));
