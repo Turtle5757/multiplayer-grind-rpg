@@ -1,10 +1,18 @@
-/* --- CORE STYLES --- */
+/* --- ROOT / VARIABLES --- */
+:root {
+    --accent: #e67e22;
+    --accent2: #f1c40f;
+    --bg-dark: #111;
+    --panel: #1a1a1a;
+    --panel2: #2b2b2b;
+}
+
+/* --- BASE --- */
 body {
     margin: 0;
-    padding: 0;
     overflow: hidden;
     background: #000;
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Segoe UI', sans-serif;
     color: white;
     user-select: none;
 }
@@ -13,185 +21,55 @@ canvas {
     display: block;
 }
 
-/* --- AUTH / LOGIN OVERLAY --- */
+/* --- OVERLAY --- */
 .overlay {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(0,0,0,0.9);
     z-index: 1000;
 }
 
+/* --- MENU BOX --- */
 .menu-box {
-    background: #1a1a1a;
-    padding: 40px;
-    border: 3px solid #e67e22;
+    background: var(--panel);
+    padding: 30px;
+    border: 2px solid var(--accent);
     border-radius: 15px;
     text-align: center;
-    width: 350px;
-    box-shadow: 0 0 30px rgba(230, 126, 34, 0.4);
+    width: 90%;
+    max-width: 380px;
+    box-shadow: 0 0 30px rgba(230,126,34,0.4);
 }
 
 .brand-title {
-    margin: 0 0 20px 0;
-    color: #e67e22;
-    font-size: 28px;
+    color: var(--accent);
     letter-spacing: 3px;
-    text-transform: uppercase;
+    margin-bottom: 20px;
 }
 
-.class-select-wrapper {
-    text-align: left;
-    margin: 15px 0;
-}
-
-.class-select-wrapper label {
-    font-size: 12px;
-    color: #888;
-    margin-left: 5px;
-}
-
+/* --- INPUTS --- */
 input, select {
-    display: block;
     width: 100%;
     padding: 12px;
-    margin: 10px 0;
-    background: #2b2b2b;
+    margin: 8px 0;
+    background: var(--panel2);
     border: 1px solid #444;
     border-radius: 6px;
     color: white;
-    box-sizing: border-box;
 }
 
-#auth-msg {
-    min-height: 20px;
-    font-size: 13px;
-    margin-top: 10px;
-}
-
-/* --- HUD (Health, Mana, Stats) --- */
-#hud {
-    position: absolute;
-    bottom: 30px;
-    left: 30px;
-    z-index: 10;
-    pointer-events: none;
-}
-
-.bar-container {
-    width: 300px;
-    height: 24px;
-    background: #222;
-    border: 2px solid #000;
-    margin-bottom: 8px;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 3px 3px 10px rgba(0,0,0,0.5);
-    position: relative;
-}
-
-#hp-bar {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, #ff4757, #ff6b81);
-    transition: width 0.3s ease-out;
-}
-
-#mana-bar {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, #1e90ff, #70a1ff);
-    transition: width 0.3s ease-out;
-}
-
-#stats-panel {
-    pointer-events: auto;
-    margin-top: 10px;
-}
-
-#stats-text {
-    font-weight: bold;
-    font-size: 16px;
-    text-shadow: 2px 2px 4px #000;
-    color: #ecf0f1;
-    margin-bottom: 12px;
-}
-
-/* --- SKILL TREE PANEL --- */
-.overlay-panel {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(15, 15, 15, 0.98);
-    border: 2px solid #f1c40f;
-    padding: 30px;
-    border-radius: 20px;
-    display: none;
-    z-index: 500;
-    width: 600px;
-    box-shadow: 0 0 100px rgba(0,0,0,0.8);
-}
-
-.menu-header {
-    text-align: center;
-    color: #f1c40f;
-    margin: 0 0 5px 0;
-    text-transform: uppercase;
-}
-
-.sp-text {
-    text-align: center;
-    color: #888;
-    margin-bottom: 25px;
-}
-
-#sp-count {
-    color: #fff;
-    font-weight: bold;
-}
-
-.skill-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-}
-
-.skill-node {
-    background: #2d3436;
-    padding: 20px;
-    border-radius: 12px;
-    border: 1px solid #444;
-    text-align: center;
-    transition: border-color 0.2s;
-}
-
-.skill-node:hover {
-    border-color: #f1c40f;
-}
-
-.skill-node h4 {
-    margin: 0 0 15px 0;
-    font-size: 18px;
-    color: #f1c40f;
-}
-
-.lv-text {
-    font-size: 12px;
-    color: #95a5a6;
-    margin-bottom: 10px;
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
 }
 
 /* --- BUTTONS --- */
 button {
     cursor: pointer;
-    font-family: inherit;
-    transition: transform 0.1s, filter 0.2s;
+    transition: all 0.15s ease;
 }
 
 button:active {
@@ -199,97 +77,195 @@ button:active {
 }
 
 .primary-btn {
-    background: #e67e22;
-    color: white;
+    background: var(--accent);
     border: none;
+    color: white;
+    padding: 12px;
     border-radius: 6px;
-    padding: 12px 20px;
     font-weight: bold;
+}
+
+.primary-btn:hover {
+    filter: brightness(1.2);
 }
 
 .secondary-btn {
     background: #444;
-    color: white;
     border: none;
+    color: white;
+    padding: 12px;
     border-radius: 6px;
-    padding: 12px 20px;
+}
+
+/* --- HUD --- */
+#hud {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.bar-container {
+    width: 250px;
+    height: 20px;
+    background: #222;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+#hp-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ff4757, #ff6b81);
+    transition: width 0.2s;
+}
+
+#mana-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #1e90ff, #70a1ff);
+    transition: width 0.2s;
+}
+
+#stats-panel {
+    pointer-events: auto;
+}
+
+#stats-text {
+    font-size: 14px;
+    margin-bottom: 8px;
 }
 
 .hud-btn {
+    padding: 6px 10px;
     font-size: 12px;
-    padding: 8px 15px;
-    letter-spacing: 1px;
+}
+
+/* --- GOLD --- */
+#gold-display {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 26px;
+    color: var(--accent2);
+    font-weight: bold;
+}
+
+/* --- SKILL TREE --- */
+.overlay-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.95);
+    background: rgba(20,20,20,0.98);
+    border: 2px solid var(--accent2);
+    padding: 25px;
+    border-radius: 15px;
+    display: none;
+    z-index: 500;
+    width: 90%;
+    max-width: 650px;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translate(-50%, -60%) scale(0.9); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.menu-header {
+    text-align: center;
+    color: var(--accent2);
+}
+
+.sp-text {
+    text-align: center;
+    color: #aaa;
+}
+
+.skill-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.skill-node {
+    background: #2d3436;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #444;
+    transition: 0.2s;
+}
+
+.skill-node:hover {
+    border-color: var(--accent2);
+    transform: translateY(-2px);
+}
+
+.skill-node h4 {
+    color: var(--accent2);
+    margin-bottom: 10px;
 }
 
 .upgrade-btn {
     width: 100%;
-    background: #f1c40f;
-    color: #000;
+    background: var(--accent2);
     border: none;
-    border-radius: 5px;
-    padding: 12px;
-    font-weight: 800;
-    margin-bottom: 12px;
-}
-
-.upgrade-btn.passive {
-    background: #34495e;
-    color: white;
+    padding: 10px;
+    font-weight: bold;
+    margin-bottom: 10px;
 }
 
 .bind-row {
     display: flex;
-    justify-content: center;
-    gap: 10px;
+    gap: 6px;
 }
 
 .bind-btn {
     flex: 1;
     background: #1e272e;
-    color: #888;
     border: 1px solid #444;
+    color: #aaa;
     padding: 6px;
     font-size: 11px;
-    border-radius: 4px;
 }
 
 .bind-btn:hover {
     color: white;
-    border-color: #f1c40f;
+    border-color: var(--accent2);
 }
 
+/* --- CLOSE BUTTON --- */
 .close-btn {
-    margin-top: 30px;
+    margin-top: 20px;
     width: 100%;
-    padding: 15px;
+    padding: 12px;
     background: none;
     border: 1px solid #444;
-    color: #666;
-    border-radius: 8px;
+    color: #aaa;
 }
 
 .close-btn:hover {
     color: white;
-    border-color: #fff;
+    border-color: white;
 }
 
-/* --- GLOBAL UI ELEMENTS --- */
-#gold-display {
-    position: absolute;
-    top: 30px;
-    right: 30px;
-    font-size: 32px;
-    color: #f1c40f;
-    font-weight: 900;
-    text-shadow: 2px 2px 5px rgba(0,0,0,0.8);
-    pointer-events: none;
-}
-
+/* --- CONTROLS --- */
 #controls-hint {
     position: absolute;
-    bottom: 30px;
-    right: 30px;
+    bottom: 20px;
+    right: 20px;
     color: #555;
-    font-size: 14px;
-    pointer-events: none;
+    font-size: 12px;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 600px) {
+    .skill-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #gold-display {
+        font-size: 18px;
+    }
 }
