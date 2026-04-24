@@ -7,10 +7,6 @@ let monsters = [];
 let projectiles = [];
 let portals = [];
 
-// ===================== INTERPOLATION STATE =====================
-let lastUpdate = Date.now();
-let playerCache = {};  // For smooth interpolation
-
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
@@ -74,18 +70,9 @@ socket.on("update", (data) => {
 
     me = players[socket.id];
 
-    // Cache previous positions for interpolation
-    Object.keys(players).forEach(id => {
-        if (!playerCache[id]) {
-            playerCache[id] = { x: players[id].x, y: players[id].y };
-        }
-    });
-
     if (me) {
         updateUI();
     }
-
-    lastUpdate = Date.now();
 });
 
 // ===================== INPUT HANDLING =====================
@@ -154,24 +141,6 @@ function updateUI() {
     document.getElementById("skillB-lv").innerText = me.upgrades.branchB || 0;
 }
 
-// ===================== INTERPOLATION HELPER =====================
-function getInterpolatedPosition(id, t) {
-    const current = players[id];
-    const previous = playerCache[id];
-
-    if (!current || !previous) {
-        return current ? { x: current.x, y: current.y } : { x: 0, y: 0 };
-    }
-
-    // Clamp t to 0-1
-    t = Math.min(1, Math.max(0, t));
-
-    return {
-        x: previous.x + (current.x - previous.x) * t,
-        y: previous.y + (current.y - previous.y) * t
-    };
-}
-
 // ===================== RENDER LOOP =====================
 function draw() {
     requestAnimationFrame(draw);
@@ -181,15 +150,8 @@ function draw() {
         return;
     }
 
-    // Calculate interpolation factor (0 to 1)
-    const timeSinceUpdate = Date.now() - lastUpdate;
-    const updateInterval = 1000 / 60;  // 60 FPS
-    const t = Math.min(1, timeSinceUpdate / updateInterval);
-
-    // Interpolate my position
-    const myInterpolated = getInterpolatedPosition(socket.id, t);
-    const camX = myInterpolated.x - canvas.width / 2;
-    const camY = myInterpolated.y - canvas.height / 2;
+    const camX = me.x - canvas.width / 2;
+    const camY = me.y - canvas.height / 2;
 
     ctx.fillStyle = "#111";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -206,7 +168,9 @@ function draw() {
         ctx.globalAlpha = 1;
 
         ctx.fillStyle = "#fff";
-        ctx.fillText(p.label, p.x - camX - 20, p.y - camY - 50);
+        ctx.font = "12px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(p.label, p.x - camX, p.y - camY - 50);
     });
 
     // MONSTERS
@@ -230,26 +194,22 @@ function draw() {
     });
 
     // PLAYERS
-    Object.keys(players).forEach(id => {
-        const p = players[id];
+    Object.values(players).forEach(p => {
         if (p.room !== me.room) return;
 
-        // Interpolate other players' positions
-        const pos = getInterpolatedPosition(id, t);
-
-        // Highlight our player in lime green
-        if (id === socket.id) {
+        // Highlight your player in lime green
+        if (p.id === socket.id) {
             ctx.fillStyle = "#00ff00";
         } else {
             ctx.fillStyle = "orange";
         }
 
-        ctx.fillRect(pos.x - camX - 15, pos.y - camY - 15, 30, 30);
+        ctx.fillRect(p.x - camX - 15, p.y - camY - 15, 30, 30);
 
         ctx.fillStyle = "white";
         ctx.font = "12px Arial";
         ctx.textAlign = "center";
-        ctx.fillText(p.name, pos.x - camX, pos.y - camY - 25);
+        ctx.fillText(p.name, p.x - camX, p.y - camY - 25);
     });
 }
 
