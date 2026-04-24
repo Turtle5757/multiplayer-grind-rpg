@@ -1,111 +1,42 @@
 const socket = io();
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
 
 // --- GAME STATE ---
 let me = null;
 let players = {};
 let monsters = [];
 let projectiles = [];
-let rooms = {};
 let portals = [];
-window.selectedClass = 'Warrior';
+let canvas = document.getElementById('gameCanvas');
+let ctx = canvas.getContext('2d');
 
-// --- VISUAL EFFECTS ---
-let slashEffect = { active: false, timer: 0, angle: 0 };
+// --- DYNAMIC KEY BINDS ---
+// These are stored locally and sent to the server when triggered
+let keyBinds = {
+    'Q': 'start', // Initial default: Q triggers Starting Skill
+    'E': 'ult'    // Initial default: E triggers Ultimate
+};
 
-// --- UI ELEMENTS ---
-const gui = document.getElementById('gui');
-const loginScreen = document.getElementById('login-screen');
-const hpFill = document.getElementById('hp-fill');
-const energyFill = document.getElementById('energy-fill');
-const manaFill = document.getElementById('mana-fill');
-const goldDisplay = document.getElementById('gold-display');
-const strDisplay = document.getElementById('str-display');
-const defDisplay = document.getElementById('def-display');
-const spdDisplay = document.getElementById('spd-display');
+// --- INPUT TRACKING ---
+let keys = { w: false, a: false, s: false, d: false };
+let mouseX = 0;
+let mouseY = 0;
 
-// --- INPUT HANDLING ---
-const keys = { w: false, a: false, s: false, d: false };
-let mouseAngle = 0;
-
-window.addEventListener('keydown', (e) => {
-    const key = e.key.toLowerCase();
-    if (keys.hasOwnProperty(key)) keys[key] = true;
-    if (key === 'q') socket.emit('useAbility', 'Q');
-    if (key === 'e') socket.emit('useAbility', 'E');
-});
-
-window.addEventListener('keyup', (e) => {
-    const key = e.key.toLowerCase();
-    if (keys.hasOwnProperty(key)) keys[key] = false;
-});
-
-window.addEventListener('mousemove', (e) => {
-    const dx = e.clientX - canvas.width / 2;
-    const dy = e.clientY - canvas.height / 2;
-    mouseAngle = Math.atan2(dy, dx);
-});
-
-window.addEventListener('mousedown', () => {
-    socket.emit('attack');
-    // Local visual for Warrior melee feedback
-    if (me && me.charClass === 'Warrior') {
-        slashEffect.active = true;
-        slashEffect.timer = 10;
-        slashEffect.angle = mouseAngle;
-    }
-});
-
-// --- AUTH FUNCTIONS (FIXED) ---
-function setClass(className, event) {
-    window.selectedClass = className;
-    document.querySelectorAll('.class-btn').forEach(b => b.classList.remove('active'));
-    event.target.classList.add('active');
-
-    const title = document.getElementById('class-title');
-    const desc = document.getElementById('class-desc');
-    title.innerText = className.toUpperCase();
-    
-    if (className === 'Warrior') desc.innerText = "Buff: 1.3x Defense & 2x Str Training. Attack: Melee. Ability: Rage.";
-    else if (className === 'Archer') desc.innerText = "Buff: 1.3x Speed & 2x Spd Training. Attack: Ranged. Ability: Dash.";
-    else if (className === 'Mage') desc.innerText = "Buff: 1.3x Damage & 2x Def Training. Attack: Spells. Ability: Heal.";
-}
-
-function loginToAccount() {
-    const name = document.getElementById('log-user').value;
-    const password = document.getElementById('log-pass').value;
-    if (!name || !password) return alert("Enter credentials");
-    // Field name must be 'password' to match server.js
-    socket.emit('login', { name, password });
-}
-
-function registerAccount() {
-    const name = document.getElementById('log-user').value;
-    const password = document.getElementById('log-pass').value;
-    if (!name || !password) return alert("Enter credentials");
-    // Field name must be 'password' to match server.js
-    socket.emit('register', { 
-        name, 
-        password, 
-        charClass: window.selectedClass 
-    });
-}
-
-// --- NETWORK EVENTS ---
-socket.on('authError', (msg) => alert(msg));
-socket.on('authMessage', (msg) => alert(msg));
-
+// --- INITIALIZATION ---
 socket.on('init', (data) => {
-    rooms = data.rooms;
+    const myId = data.id;
     portals = data.portals;
-    loginScreen.style.display = 'none';
-    gui.style.display = 'block';
+    
+    // Resize canvas to fill window
+    window.addEventListener('resize', resize);
+    resize();
 });
 
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+// --- CORE UPDATE LOOP ---
 socket.on('update', (data) => {
     players = data.players;
     monsters = data.monsters;
@@ -113,118 +44,180 @@ socket.on('update', (data) => {
     me = players[socket.id];
 
     if (me) {
-        // Update Bars
-        hpFill.style.width = (me.hp / me.maxHp * 100) + "%";
-        manaFill.style.width = (me.mana / me.maxMana * 100) + "%";
-        energyFill.style.width = me.energy + "%";
-        
-        // Update Numbers
-        goldDisplay.innerText = Math.floor(me.gold);
-        strDisplay.innerText = me.str.toFixed(1);
-        defDisplay.innerText = me.def.toFixed(1);
-        spdDisplay.innerText = me.spd.toFixed(1);
-        
-        // Zone Indicator
-        const status = document.getElementById('combat-status');
-        if (me.room === 'boss_room') {
-            status.innerText = "💀 BOSS LAIR";
-            status.style.color = "#ff4757";
-        } else if (me.room === 'graveyard') {
-            status.innerText = "⚠️ PVP ZONE";
-            status.style.color = "#ffa502";
-        } else {
-            status.innerText = "🛡️ SAFETY ZONE";
-            status.style.color = "#2ecc71";
-        }
+        updateStatsUI();
+        updateSkillTreeUI();
     }
 });
 
-// --- RENDER LOOP ---
+// --- INPUT LISTENERS ---
+window.addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (keys.hasOwnProperty(k)) keys[k] = true;
+
+    // Trigger Activated Abilities based on Binds
+    const pressed = e.key.toUpperCase();
+    if (keyBinds[pressed]) {
+        const skillId = keyBinds[pressed];
+        // Only send if the skill is actually unlocked in the tree
+        if (me && me.upgrades[skillId] > 0) {
+            socket.emit('useAbility', { key: pressed, skillId: skillId });
+        }
+    }
+    
+    sendMove();
+});
+
+window.addEventListener('keyup', (e) => {
+    const k = e.key.toLowerCase();
+    if (keys.hasOwnProperty(k)) keys[k] = false;
+    sendMove();
+});
+
+window.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    sendMove();
+});
+
+window.addEventListener('mousedown', () => {
+    socket.emit('attack');
+});
+
+function sendMove() {
+    if (!me) return;
+    const angle = Math.atan2(mouseY - canvas.height / 2, mouseX - canvas.width / 2);
+    socket.emit('move', { keys, angle });
+}
+
+// --- UI & SKILL TREE LOGIC ---
+function toggleMenu(id) {
+    const menu = document.getElementById(id);
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+function bindSkill(skillId, key) {
+    if (!me || me.upgrades[skillId] === 0) {
+        alert("You must unlock this skill in the tree first!");
+        return;
+    }
+    // Swap binds if the key was already used elsewhere
+    for (let k in keyBinds) {
+        if (keyBinds[k] === skillId) delete keyBinds[k];
+    }
+    keyBinds[key] = skillId;
+    alert(`Skill bound to ${key}!`);
+}
+
+function updateStatsUI() {
+    document.getElementById('hp-bar').style.width = (me.hp / me.maxHp * 100) + '%';
+    document.getElementById('mana-bar').style.width = (me.mana / me.maxMana * 100) + '%';
+    document.getElementById('gold-display').innerText = `Gold: ${Math.floor(me.gold)}`;
+    document.getElementById('stats-text').innerText = 
+        `STR: ${me.str.toFixed(1)} | DEF: ${me.def.toFixed(1)} | SPD: ${me.spd.toFixed(2)}`;
+}
+
+function updateSkillTreeUI() {
+    const spElement = document.getElementById('sp-count');
+    if (spElement) spElement.innerText = me.skillPoints;
+
+    // Define class-specific names for the UI
+    const classNames = {
+        Warrior: { start: "Slash Wave", ult: "Berserk Rage", a: "Vampirism", b: "Iron Skin" },
+        Archer: { start: "Power Shot", ult: "Wind Step", a: "Eagle Eye", b: "Volley" },
+        Mage: { start: "Fireball", ult: "Life Transfuse", a: "Mana Flow", b: "Frost Nova" }
+    };
+
+    const names = classNames[me.charClass];
+    
+    // Update Labels
+    document.getElementById('start-skill-name').innerText = names.start;
+    document.getElementById('ult-skill-name').innerText = names.ult;
+    document.getElementById('skillA-name').innerText = names.a;
+    document.getElementById('skillB-name').innerText = names.b;
+
+    // Update Levels
+    document.getElementById('skillA-lv').innerText = me.upgrades.branchA;
+    document.getElementById('skillB-lv').innerText = me.upgrades.branchB;
+}
+
+// --- RENDERING ENGINE ---
 function draw() {
-    if (!me) { requestAnimationFrame(draw); return; }
-
-    // Draw Background
-    ctx.fillStyle = rooms[me.room]?.bg || '#000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const camX = canvas.width / 2 - me.x;
-    const camY = canvas.height / 2 - me.y;
-
-    // 1. Draw Portals
-    portals.forEach(p => {
-        if (p.fromRoom === me.room) {
-            ctx.fillStyle = p.color;
-            ctx.beginPath();
-            ctx.arc(p.x + camX, p.y + camY, 45, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "white";
-            ctx.font = "bold 14px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText(p.label, p.x + camX, p.y + camY - 55);
-        }
-    });
-
-    // 2. Draw Monsters
-    monsters.forEach(m => {
-        if (m.room === me.room && m.isAlive) {
-            ctx.fillStyle = m.isBoss ? "#e74c3c" : "#95a5a6";
-            const size = m.isBoss ? 100 : 30;
-            ctx.beginPath();
-            ctx.arc(m.x + camX, m.y + camY, size, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // HP Bar for Boss
-            if (m.isBoss) {
-                const barW = 200;
-                ctx.fillStyle = "#333";
-                ctx.fillRect(m.x + camX - barW/2, m.y + camY - 130, barW, 12);
-                ctx.fillStyle = "#ff4757";
-                ctx.fillRect(m.x + camX - barW/2, m.y + camY - 130, (m.hp / m.maxHp) * barW, 12);
-            }
-        }
-    });
-
-    // 3. Draw Projectiles
-    projectiles.forEach(pr => {
-        if (pr.room === me.room) {
-            ctx.fillStyle = pr.owner === 'BOSS' ? "#ff4757" : (pr.isSpecial ? "#00d2d3" : "white");
-            ctx.beginPath();
-            ctx.arc(pr.x + camX, pr.y + camY, pr.isSpecial ? 10 : 5, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    });
-
-    // 4. Draw Players
-    Object.values(players).forEach(p => {
-        if (p.room === me.room) {
-            ctx.fillStyle = p.color;
-            ctx.beginPath();
-            ctx.arc(p.x + camX, p.y + camY, 25, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Name Tag
-            ctx.fillStyle = "white";
-            ctx.font = "14px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText(p.name, p.x + camX, p.y + camY - 35);
-        }
-    });
-
-    // 5. Warrior Slash Animation (Local Interpolation)
-    if (slashEffect.active && me.charClass === 'Warrior') {
-        ctx.strokeStyle = `rgba(255, 255, 255, ${slashEffect.timer / 10})`;
-        ctx.lineWidth = 10;
-        ctx.beginPath();
-        ctx.arc(me.x + camX, me.y + camY, 90, slashEffect.angle - 0.8, slashEffect.angle + 0.8);
-        ctx.stroke();
-        slashEffect.timer--;
-        if (slashEffect.timer <= 0) slashEffect.active = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!me) {
+        requestAnimationFrame(draw);
+        return;
     }
 
-    // Input Sync
-    socket.emit('move', { keys, angle: mouseAngle });
+    const camX = me.x - canvas.width / 2;
+    const camY = me.y - canvas.height / 2;
+
+    // 1. Draw World/Floor
+    ctx.fillStyle = '#1a1a1a'; // Dark void outside
+    ctx.fillRect(-camX, -camY, 2000, 2000); 
+
+    // 2. Draw Portals
+    portals.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x - camX, p.y - camY, 40, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = 0.6;
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = "#fff";
+        ctx.fillText(p.label, p.x - camX - 20, p.y - camY - 50);
+    });
+
+    // 3. Draw Monsters
+    monsters.forEach(m => {
+        if (!m.isAlive) return;
+        ctx.fillStyle = m.isBoss ? '#ff0000' : '#8e44ad';
+        ctx.beginPath();
+        ctx.arc(m.x - camX, m.y - camY, m.isBoss ? 80 : 30, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Monster HP Bar
+        ctx.fillStyle = '#c0392b';
+        ctx.fillRect(m.x - camX - 30, m.y - camY - 50, 60, 8);
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillRect(m.x - camX - 30, m.y - camY - 50, (m.hp / m.maxHp) * 60, 8);
+    });
+
+    // 4. Draw Projectiles
+    projectiles.forEach(p => {
+        ctx.fillStyle = p.isSpecial ? '#f1c40f' : '#fff';
+        ctx.beginPath();
+        ctx.arc(p.x - camX, p.y - camY, p.isSpecial ? 8 : 4, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // 5. Draw Players
+    Object.values(players).forEach(p => {
+        // Body
+        ctx.save();
+        ctx.translate(p.x - camX, p.y - camY);
+        ctx.rotate(p.angle);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-20, -20, 40, 40);
+        
+        // Direction indicator (Eyes/Front)
+        ctx.fillStyle = '#000';
+        ctx.fillRect(10, -10, 5, 5);
+        ctx.fillRect(10, 5, 5, 5);
+        ctx.restore();
+
+        // Name & Health
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.fillText(p.name + ` [${p.charClass}]`, p.x - camX, p.y - camY - 45);
+        
+        ctx.fillStyle = '#555';
+        ctx.fillRect(p.x - camX - 20, p.y - camY - 35, 40, 5);
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillRect(p.x - camX - 20, p.y - camY - 35, (p.hp / p.maxHp) * 40, 5);
+    });
+
     requestAnimationFrame(draw);
 }
 
-// Start Loop
+// Start Rendering
 draw();
