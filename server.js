@@ -122,22 +122,68 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('login', (data) => {
-        const u = users[data.name];
+    socket.on("login", (data) => {
+    console.log("LOGIN ATTEMPT:", data);
 
-        if (u && u.password === data.password) {
-            players[socket.id] = createPlayer(socket.id, { ...data, ...u });
+    const u = users[data.name];
 
-            // FIX: ALWAYS SEND FULL PLAYER DATA
-            socket.emit('init', {
-                id: socket.id,
-                portals,
-                self: players[socket.id]
-            });
-        } else {
-            socket.emit('authError', 'Login failed');
-        }
+    // --- DEBUG GUARD ---
+    if (!u) {
+        console.log("LOGIN FAIL: user not found");
+        socket.emit("authError", "User not found");
+        return;
+    }
+
+    if (u.password !== data.password) {
+        console.log("LOGIN FAIL: wrong password");
+        socket.emit("authError", "Wrong password");
+        return;
+    }
+
+    // --- CREATE PLAYER SAFELY ---
+    const player = {
+        id: socket.id,
+        name: data.name,
+        charClass: u.charClass,
+
+        x: 1000,
+        y: 1000,
+        room: "hub",
+
+        hp: 100,
+        maxHp: 100,
+        mana: 100,
+        maxMana: 100,
+
+        gold: u.gold || 0,
+
+        str: u.str,
+        def: u.def,
+        spd: u.spd,
+
+        level: u.level || 1,
+        xp: u.xp || 0,
+        prestige: u.prestige || 0,
+
+        skillPoints: u.skillPoints,
+        upgrades: u.upgrades,
+        gear: u.gear,
+
+        buffs: { str: 1 },
+        cooldowns: {},
+        keys: {}
+    };
+
+    players[socket.id] = player;
+
+    console.log("LOGIN SUCCESS:", player.name);
+
+    socket.emit("init", {
+        id: socket.id,
+        portals,
+        self: player
     });
+});
 
     socket.on('move', (data) => {
         const p = players[socket.id];
