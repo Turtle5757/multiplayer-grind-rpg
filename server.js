@@ -48,6 +48,9 @@ loadUsers();
 
 // ===================== WORLD =====================
 const WORLD_SIZE = 2000;
+const PLAYER_SPEED = 8;
+const ACCELERATION = 0.8;
+const FRICTION = 0.85;
 
 // 🔥 FIX: THIS WAS YOUR CRASH
 const PORTALS = [
@@ -64,6 +67,8 @@ function createPlayer(id, name, u) {
 
         x: 1000,
         y: 1000,
+        vx: 0,  // velocity X
+        vy: 0,  // velocity Y
         room: "hub",
 
         hp: 100,
@@ -136,25 +141,6 @@ io.on("connection", (socket) => {
         if (!p) return;
 
         p.keys = data.keys || {};
-
-        if (p.keys.w) p.y -= p.spd;
-        if (p.keys.s) p.y += p.spd;
-        if (p.keys.a) p.x -= p.spd;
-        if (p.keys.d) p.x += p.spd;
-
-        p.x = Math.max(0, Math.min(WORLD_SIZE, p.x));
-        p.y = Math.max(0, Math.min(WORLD_SIZE, p.y));
-
-        // portal collision
-        for (const pt of PORTALS) {
-            if (p.room === pt.fromRoom &&
-                Math.hypot(p.x - pt.x, p.y - pt.y) < 60) {
-
-                p.room = pt.toRoom;
-                p.x = pt.targetX;
-                p.y = pt.targetY;
-            }
-        }
     });
 
     // -------- ATTACK --------
@@ -188,8 +174,53 @@ io.on("connection", (socket) => {
     });
 });
 
-// ===================== LOOP =====================
+// ===================== GAME UPDATE LOOP =====================
 setInterval(() => {
+    // Update player movement with smooth physics
+    Object.values(players).forEach(p => {
+        // Apply acceleration based on keys pressed
+        const baseSpeed = PLAYER_SPEED + (p.spd * 0.5);
+        
+        if (p.keys.w) p.vy -= ACCELERATION;
+        if (p.keys.s) p.vy += ACCELERATION;
+        if (p.keys.a) p.vx -= ACCELERATION;
+        if (p.keys.d) p.vx += ACCELERATION;
+
+        // Apply max speed cap
+        const speed = Math.hypot(p.vx, p.vy);
+        if (speed > baseSpeed) {
+            const ratio = baseSpeed / speed;
+            p.vx *= ratio;
+            p.vy *= ratio;
+        }
+
+        // Apply friction
+        p.vx *= FRICTION;
+        p.vy *= FRICTION;
+
+        // Update position
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // Clamp to world boundaries
+        p.x = Math.max(0, Math.min(WORLD_SIZE, p.x));
+        p.y = Math.max(0, Math.min(WORLD_SIZE, p.y));
+
+        // Portal collision
+        for (const pt of PORTALS) {
+            if (p.room === pt.fromRoom &&
+                Math.hypot(p.x - pt.x, p.y - pt.y) < 60) {
+
+                p.room = pt.toRoom;
+                p.x = pt.targetX;
+                p.y = pt.targetY;
+                p.vx = 0;
+                p.vy = 0;
+            }
+        }
+    });
+
+    // Update projectiles
     for (let i = projectiles.length - 1; i >= 0; i--) {
         const pr = projectiles[i];
 
@@ -201,11 +232,12 @@ setInterval(() => {
         }
     }
 
+    // Broadcast state
     io.emit("update", {
         players,
         projectiles
     });
-}, 1000 / 30);
+}, 1000 / 60);  // Increased to 60 FPS for smoother updates
 
 // ===================== START =====================
 server.listen(PORT, "0.0.0.0", () => {
