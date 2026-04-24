@@ -1,38 +1,24 @@
-/* =========================
-   ROOT THEME
-========================= */
-:root {
-    --bg: #0f0f0f;
-    --panel: #1a1a1a;
-    --panel2: #242424;
-
-    --accent: #e67e22;
-    --accent2: #f1c40f;
-    --good: #2ecc71;
-    --bad: #e74c3c;
-}
-
-/* =========================
-   BASE
-========================= */
+/* ===================== BASE ===================== */
 body {
     margin: 0;
+    padding: 0;
     overflow: hidden;
-    background: var(--bg);
-    font-family: 'Segoe UI', sans-serif;
+    background: #000;
+    font-family: Arial, sans-serif;
     color: white;
     user-select: none;
 }
 
 canvas {
     display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
-/* =========================
-   AUTH SCREEN
-========================= */
+/* ===================== AUTH SCREEN ===================== */
 .overlay {
-    position: absolute;
+    position: fixed;
     inset: 0;
     display: flex;
     justify-content: center;
@@ -42,275 +28,196 @@ canvas {
 }
 
 .menu-box {
-    background: var(--panel);
-    padding: 28px;
-    border-radius: 14px;
-    border: 2px solid var(--accent);
-    width: 90%;
-    max-width: 380px;
+    width: 360px;
+    background: #1a1a1a;
+    padding: 30px;
+    border: 2px solid #e67e22;
+    border-radius: 12px;
     text-align: center;
-    box-shadow: 0 0 40px rgba(230,126,34,0.3);
 }
 
 .brand-title {
-    color: var(--accent);
-    margin-bottom: 15px;
+    margin-bottom: 20px;
+    color: #e67e22;
     letter-spacing: 2px;
 }
 
-/* inputs */
+/* ===================== INPUTS ===================== */
 input, select {
     width: 100%;
-    padding: 12px;
+    padding: 10px;
     margin: 8px 0;
-    background: var(--panel2);
+    background: #2b2b2b;
     border: 1px solid #444;
-    border-radius: 6px;
     color: white;
-}
-
-input:focus, select:focus {
+    border-radius: 6px;
     outline: none;
-    border-color: var(--accent);
 }
 
-/* =========================
-   BUTTONS
-========================= */
+/* ===================== BUTTONS ===================== */
 button {
     cursor: pointer;
-    transition: 0.15s;
+    transition: 0.2s;
 }
 
 button:active {
-    transform: scale(0.96);
+    transform: scale(0.97);
 }
 
 .primary-btn {
-    background: var(--accent);
-    border: none;
-    padding: 10px;
     width: 100%;
+    padding: 10px;
+    background: #e67e22;
+    border: none;
+    color: white;
+    margin-top: 10px;
     border-radius: 6px;
     font-weight: bold;
-    color: white;
-}
-
-.primary-btn:hover {
-    filter: brightness(1.15);
 }
 
 .secondary-btn {
-    background: #444;
-    border: none;
-    padding: 10px;
     width: 100%;
+    padding: 10px;
+    background: #333;
+    border: none;
+    color: white;
     margin-top: 8px;
     border-radius: 6px;
-    color: white;
 }
 
-/* =========================
-   HUD
-========================= */
+.primary-btn:hover {
+    filter: brightness(1.1);
+}
+
+/* ===================== HUD ===================== */
 #hud {
-    position: absolute;
-    bottom: 18px;
-    left: 18px;
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
     z-index: 10;
     pointer-events: none;
 }
 
-/* bars */
 .bar-container {
-    width: 240px;
+    width: 260px;
     height: 18px;
     background: #222;
-    border-radius: 10px;
     margin-bottom: 6px;
+    border-radius: 8px;
     overflow: hidden;
-    border: 1px solid #333;
 }
 
-/* HP */
 #hp-bar {
     height: 100%;
-    background: linear-gradient(90deg, #e74c3c, #ff6b81);
-    transition: width 0.2s;
+    width: 100%;
+    background: #ff4d4d;
 }
 
-/* MANA */
 #mana-bar {
     height: 100%;
-    background: linear-gradient(90deg, #3498db, #70a1ff);
-    transition: width 0.2s;
+    width: 100%;
+    background: #4da6ff;
 }
 
-/* XP (NEW) */
-#xp-bar {
-    height: 100%;
-    background: linear-gradient(90deg, #9b59b6, #f1c40f);
-    transition: width 0.2s;
-}
-
-/* stats */
 #stats-panel {
     pointer-events: auto;
-    margin-top: 6px;
+    margin-top: 10px;
 }
 
 #stats-text {
-    font-size: 13px;
-    color: #ddd;
-    margin-bottom: 8px;
+    font-size: 14px;
 }
 
-/* =========================
-   GOLD
-========================= */
+/* ===================== GOLD ===================== */
 #gold-display {
-    position: absolute;
-    top: 18px;
-    right: 18px;
-    font-size: 26px;
-    font-weight: bold;
-    color: var(--accent2);
-    text-shadow: 0 0 10px rgba(241,196,15,0.4);
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    font-size: 24px;
+    color: gold;
+    z-index: 10;
 }
 
-/* =========================
-   SKILL TREE
-========================= */
+/* ===================== CONTROLS ===================== */
+#controls-hint {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+/* ===================== SKILL TREE ===================== */
 .overlay-panel {
-    position: absolute;
+    position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     background: rgba(20,20,20,0.98);
-    border: 2px solid var(--accent2);
-    border-radius: 14px;
-    padding: 22px;
-    width: 90%;
-    max-width: 650px;
+    border: 2px solid #f1c40f;
+    padding: 20px;
+    border-radius: 12px;
     display: none;
-    z-index: 500;
+    z-index: 2000;
+    width: 500px;
 }
 
 .menu-header {
     text-align: center;
-    color: var(--accent2);
-    margin-bottom: 5px;
+    color: #f1c40f;
+    margin-bottom: 10px;
 }
 
 .sp-text {
     text-align: center;
-    color: #aaa;
-    margin-bottom: 18px;
+    opacity: 0.7;
 }
 
-/* grid */
 .skill-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 14px;
+    gap: 10px;
+    margin-top: 15px;
 }
 
-/* nodes */
 .skill-node {
-    background: var(--panel2);
-    padding: 14px;
-    border-radius: 10px;
-    border: 1px solid #333;
-    transition: 0.2s;
-}
-
-.skill-node:hover {
-    border-color: var(--accent2);
-    transform: translateY(-2px);
+    background: #2b2b2b;
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
 }
 
 .skill-node h4 {
-    margin: 0 0 8px 0;
-    color: var(--accent2);
+    margin: 5px 0;
+    color: #f1c40f;
 }
 
-/* upgrade buttons */
-.upgrade-btn {
+/* ===================== SKILL BUTTONS ===================== */
+.skill-node button {
     width: 100%;
-    padding: 10px;
-    background: var(--accent2);
+    padding: 8px;
     border: none;
+    background: #444;
+    color: white;
+    margin-top: 5px;
     border-radius: 6px;
-    font-weight: bold;
-    margin-bottom: 8px;
 }
 
-.upgrade-btn.passive {
-    background: #34495e;
-    color: white;
+.skill-node button:hover {
+    background: #666;
 }
 
-/* binds */
-.bind-row {
-    display: flex;
-    gap: 6px;
-}
-
-.bind-btn {
-    flex: 1;
-    background: #1b1b1b;
-    border: 1px solid #444;
-    color: #aaa;
-    padding: 6px;
-    font-size: 11px;
-    border-radius: 4px;
-}
-
-.bind-btn:hover {
-    border-color: var(--accent2);
-    color: white;
-}
-
-/* close */
+/* ===================== CLOSE BUTTON ===================== */
 .close-btn {
-    margin-top: 18px;
     width: 100%;
-    padding: 12px;
-    background: none;
-    border: 1px solid #444;
-    color: #aaa;
+    margin-top: 15px;
+    padding: 10px;
+    border: 1px solid #555;
+    background: transparent;
+    color: white;
     border-radius: 6px;
 }
 
 .close-btn:hover {
     border-color: white;
-    color: white;
-}
-
-/* =========================
-   CONTROLS
-========================= */
-#controls-hint {
-    position: absolute;
-    bottom: 18px;
-    right: 18px;
-    font-size: 12px;
-    color: #666;
-}
-
-/* =========================
-   MOBILE SUPPORT
-========================= */
-@media (max-width: 600px) {
-    .skill-grid {
-        grid-template-columns: 1fr;
-    }
-
-    #gold-display {
-        font-size: 18px;
-    }
-
-    .bar-container {
-        width: 180px;
-    }
 }
