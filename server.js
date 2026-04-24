@@ -10,9 +10,9 @@ const WORLD_SIZE = 2000;
 const TICK_RATE = 30;
 
 const GEAR_DATA = {
-    sword: [1.0, 1.3, 1.7, 2.2, 3.5], // STR multipliers
-    armor: [1.0, 1.4, 1.8, 2.5, 4.0], // DEF multipliers
-    boots: [1.0, 1.2, 1.4, 1.7, 2.5]  // SPD multipliers
+    sword: [1.0, 1.3, 1.7, 2.2, 3.5], 
+    armor: [1.0, 1.4, 1.8, 2.5, 4.0], 
+    boots: [1.0, 1.2, 1.4, 1.7, 2.5]  
 };
 
 const PORTALS = [
@@ -44,7 +44,6 @@ function respawn(p) {
     p.hp = p.maxHp; p.mana = p.maxMana; p.room = 'hub'; p.x = 1000; p.y = 1000;
 }
 
-// --- NETWORK ---
 io.on('connection', (socket) => {
 
     socket.on('register', (data) => {
@@ -71,27 +70,16 @@ io.on('connection', (socket) => {
                 str: u.str, def: u.def, spd: u.spd,
                 skillPoints: u.skillPoints, upgrades: u.upgrades, gear: u.gear,
                 buffs: { str: 1.0 }, cooldowns: { Q: 0, E: 0 },
-                keys: {}, angle: 0
+                keys: {}
             };
             socket.emit('init', { id: socket.id, portals: PORTALS });
         } else socket.emit('authError', 'Login Failed.');
-    });
-
-    socket.on('upgradeSkill', (branch) => {
-        const p = players[socket.id];
-        if (!p || p.skillPoints <= 0) return;
-        if (p.upgrades[branch] < 3) {
-            p.upgrades[branch]++;
-            p.skillPoints--;
-            if (p.charClass === 'Warrior' && branch === 'branchB') { p.maxHp += 60; p.hp += 60; }
-        }
     });
 
     socket.on('move', (data) => {
         const p = players[socket.id];
         if (!p) return;
         p.keys = data.keys;
-        p.angle = data.angle;
 
         let speed = p.spd * GEAR_DATA.boots[p.gear.boots];
         if (p.keys.w) p.y -= speed;
@@ -109,12 +97,16 @@ io.on('connection', (socket) => {
         });
     });
 
-    socket.on('attack', () => {
+    // --- CLICK TO ATTACK LOGIC ---
+    socket.on('attack', (targetData) => {
         const p = players[socket.id];
         if (!p || p.room === 'hub' || Date.now() - (p.latk || 0) < 300) return;
         p.latk = Date.now();
         
         let damage = p.str * GEAR_DATA.sword[p.gear.sword] * p.buffs.str;
+        
+        // Calculate angle from player to click coordinates
+        const angle = Math.atan2(targetData.y - p.y, targetData.x - p.x);
 
         if (p.charClass === 'Warrior') {
             monsters.forEach(m => {
@@ -128,12 +120,11 @@ io.on('connection', (socket) => {
                     }
                 }
             });
-            socket.emit('swingEffect');
         } else {
             let multishot = (p.charClass === 'Archer' && Math.random() < p.upgrades.branchB * 0.3) ? 2 : 1;
             for (let i = 0; i < multishot; i++) {
                 projectiles.push({ 
-                    x: p.x, y: p.y, vx: Math.cos(p.angle + i*0.1)*20, vy: Math.sin(p.angle + i*0.1)*20, 
+                    x: p.x, y: p.y, vx: Math.cos(angle + i*0.1)*18, vy: Math.sin(angle + i*0.1)*18, 
                     owner: socket.id, room: p.room, damage: damage, 
                     slow: (p.charClass === 'Mage' ? p.upgrades.branchB * 0.25 : 0) 
                 });
@@ -143,25 +134,26 @@ io.on('connection', (socket) => {
 
     socket.on('useAbility', (data) => {
         const p = players[socket.id];
-        const { key, skillId } = data;
-        if (!p || Date.now() < p.cooldowns[key] || p.room === 'hub' || p.upgrades[skillId] <= 0) return;
+        if (!p || Date.now() < p.cooldowns[data.key] || p.room === 'hub' || p.upgrades[data.skillId] <= 0) return;
 
-        if (skillId === 'start' && p.mana >= 25) {
+        const angle = Math.atan2(data.targetY - p.y, data.targetX - p.x);
+
+        if (data.skillId === 'start' && p.mana >= 25) {
             let scaling = 2.0 + (p.upgrades.start * 0.8);
-            projectiles.push({ x: p.x, y: p.y, vx: Math.cos(p.angle)*25, vy: Math.sin(p.angle)*25, owner: socket.id, room: p.room, damage: p.str * scaling, isSpecial: true });
-            p.mana -= 25; p.cooldowns[key] = Date.now() + 2000;
+            projectiles.push({ x: p.x, y: p.y, vx: Math.cos(angle)*22, vy: Math.sin(angle)*22, owner: socket.id, room: p.room, damage: p.str * scaling, isSpecial: true });
+            p.mana -= 25; p.cooldowns[data.key] = Date.now() + 2000;
         } 
-        else if (skillId === 'ult' && p.mana >= 60) {
+        else if (data.skillId === 'ult' && p.mana >= 60) {
             if (p.charClass === 'Warrior') {
                 p.buffs.str = 1.8 + (p.upgrades.ult * 0.2);
                 setTimeout(() => { if (players[socket.id]) players[socket.id].buffs.str = 1.0; }, 7000);
             } else if (p.charClass === 'Archer') {
-                p.x += Math.cos(p.angle) * (450 + p.upgrades.ult * 50);
-                p.y += Math.sin(p.angle) * (450 + p.upgrades.ult * 50);
+                p.x += Math.cos(angle) * (450 + p.upgrades.ult * 50);
+                p.y += Math.sin(angle) * (450 + p.upgrades.ult * 50);
             } else if (p.charClass === 'Mage') {
                 p.hp = Math.min(p.maxHp, p.hp + 100 + (p.upgrades.ult * 50));
             }
-            p.mana -= 60; p.cooldowns[key] = Date.now() + 10000;
+            p.mana -= 60; p.cooldowns[data.key] = Date.now() + 10000;
         }
     });
 
@@ -174,29 +166,22 @@ io.on('connection', (socket) => {
     });
 });
 
-// --- SERVER TICK ---
 setInterval(() => {
     const now = Date.now();
     Object.values(players).forEach(p => {
-        // Regen
         p.mana = Math.min(p.maxMana, p.mana + 0.8 * (p.charClass === 'Mage' ? (1 + p.upgrades.branchA * 0.4) : 1));
-        
-        // Training
-        if (p.room === 'gym') p.str += 0.08 * (p.charClass === 'Warrior' ? 2 : 1);
-        if (p.room === 'lake' && (p.keys.w || p.keys.a || p.keys.s || p.keys.d)) p.spd += 0.0015 * (p.charClass === 'Archer' ? 2 : 1);
-        if (p.room === 'shrine' && !Object.values(p.keys).some(k => k)) p.def += 0.03 * (p.charClass === 'Mage' ? 2 : 1);
+        if (p.room === 'gym') p.str += 0.08;
+        if (p.room === 'lake' && (p.keys.w || p.keys.a || p.keys.s || p.keys.d)) p.spd += 0.0015;
+        if (p.room === 'shrine' && !Object.values(p.keys).some(k => k)) p.def += 0.03;
 
-        // Monster Logic
         monsters.forEach(m => {
             if (!m.isAlive || m.room !== p.room) return;
             let dist = Math.hypot(p.x - m.x, p.y - m.y);
             if (dist < (m.isBoss ? 2000 : 600)) {
                 let ang = Math.atan2(p.y - m.y, p.x - m.x);
-                let slw = (m.st > now) ? 0.5 : 1;
-                m.x += Math.cos(ang) * m.spd * slw; m.y += Math.sin(ang) * m.spd * slw;
+                m.x += Math.cos(ang) * m.spd; m.y += Math.sin(ang) * m.spd;
                 if (dist < 65 && now - (m.latk || 0) > 1000) {
-                    let df = p.def * GEAR_DATA.armor[p.gear.armor] * (p.charClass === 'Warrior' ? 1.5 : 1.0);
-                    p.hp -= Math.max(10, m.str - (df * 0.5)); m.latk = now;
+                    p.hp -= Math.max(10, m.str - (p.def * 0.5)); m.latk = now;
                     if (p.hp <= 0) respawn(p);
                 }
             }
@@ -207,14 +192,10 @@ setInterval(() => {
         let pr = projectiles[i]; pr.x += pr.vx; pr.y += pr.vy;
         monsters.forEach(m => {
             if (m.isAlive && m.room === pr.room && Math.hypot(pr.x - m.x, pr.y - m.y) < 75) {
-                m.hp -= pr.damage; if (pr.slow) m.st = now + 2500;
-                projectiles.splice(i, 1);
+                m.hp -= pr.damage; projectiles.splice(i, 1);
                 if (m.hp <= 0) {
                     m.isAlive = false; 
-                    if (players[pr.owner]) { 
-                        players[pr.owner].gold += m.gold; 
-                        if (m.isBoss) players[pr.owner].skillPoints += 5; 
-                    }
+                    if (players[pr.owner]) players[pr.owner].gold += m.gold;
                     setTimeout(() => { m.isAlive = true; m.hp = m.maxHp; }, 15000);
                 }
             }
