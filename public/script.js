@@ -7,8 +7,9 @@ let monsters = [];
 let projectiles = [];
 let portals = [];
 
-// Interpolation state
-let lastPlayerPositions = {};
+// ===================== INTERPOLATION STATE =====================
+let lastUpdate = Date.now();
+let playerCache = {};  // For smooth interpolation
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -73,9 +74,18 @@ socket.on("update", (data) => {
 
     me = players[socket.id];
 
+    // Cache previous positions for interpolation
+    Object.keys(players).forEach(id => {
+        if (!playerCache[id]) {
+            playerCache[id] = { x: players[id].x, y: players[id].y };
+        }
+    });
+
     if (me) {
         updateUI();
     }
+
+    lastUpdate = Date.now();
 });
 
 // ===================== INPUT HANDLING =====================
@@ -145,30 +155,24 @@ function updateUI() {
 }
 
 // ===================== INTERPOLATION HELPER =====================
-function getInterpolatedPlayerPosition(playerId, alpha) {
-    const currentPlayer = players[playerId];
-    if (!currentPlayer) return null;
+function getInterpolatedPosition(id, t) {
+    const current = players[id];
+    const previous = playerCache[id];
 
-    const lastPos = lastPlayerPositions[playerId];
-    if (!lastPos) {
-        lastPlayerPositions[playerId] = { x: currentPlayer.x, y: currentPlayer.y };
-        return { x: currentPlayer.x, y: currentPlayer.y };
+    if (!current || !previous) {
+        return current ? { x: current.x, y: current.y } : { x: 0, y: 0 };
     }
 
-    // Interpolate between last position and current position
-    const interpolated = {
-        x: lastPos.x + (currentPlayer.x - lastPos.x) * alpha,
-        y: lastPos.y + (currentPlayer.y - lastPos.y) * alpha
+    // Clamp t to 0-1
+    t = Math.min(1, Math.max(0, t));
+
+    return {
+        x: previous.x + (current.x - previous.x) * t,
+        y: previous.y + (current.y - previous.y) * t
     };
-
-    // Update last position for next frame
-    lastPlayerPositions[playerId] = { x: currentPlayer.x, y: currentPlayer.y };
-
-    return interpolated;
 }
 
 // ===================== RENDER LOOP =====================
-let lastTime = Date.now();
 function draw() {
     requestAnimationFrame(draw);
 
@@ -177,14 +181,15 @@ function draw() {
         return;
     }
 
-    // Calculate interpolation alpha
-    const currentTime = Date.now();
-    const deltaTime = Math.min(currentTime - lastTime, 50); // Cap at 50ms to prevent large jumps
-    lastTime = currentTime;
-    const alpha = Math.min(deltaTime / (1000 / 60), 1); // Normalize to 60 FPS frame time
+    // Calculate interpolation factor (0 to 1)
+    const timeSinceUpdate = Date.now() - lastUpdate;
+    const updateInterval = 1000 / 60;  // 60 FPS
+    const t = Math.min(1, timeSinceUpdate / updateInterval);
 
-    const camX = me.x - canvas.width / 2;
-    const camY = me.y - canvas.height / 2;
+    // Interpolate my position
+    const myInterpolated = getInterpolatedPosition(socket.id, t);
+    const camX = myInterpolated.x - canvas.width / 2;
+    const camY = myInterpolated.y - canvas.height / 2;
 
     ctx.fillStyle = "#111";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -224,19 +229,27 @@ function draw() {
         ctx.fill();
     });
 
-    // PLAYERS (with interpolation)
-    Object.values(players).forEach(p => {
+    // PLAYERS
+    Object.keys(players).forEach(id => {
+        const p = players[id];
         if (p.room !== me.room) return;
 
-        const interpolated = getInterpolatedPlayerPosition(p.id, alpha);
-        if (!interpolated) return;
+        // Interpolate other players' positions
+        const pos = getInterpolatedPosition(id, t);
 
-        ctx.fillStyle = p.id === socket.id ? "lime" : "orange";
-        ctx.fillRect(interpolated.x - camX - 15, interpolated.y - camY - 15, 30, 30);
+        // Highlight our player in lime green
+        if (id === socket.id) {
+            ctx.fillStyle = "#00ff00";
+        } else {
+            ctx.fillStyle = "orange";
+        }
+
+        ctx.fillRect(pos.x - camX - 15, pos.y - camY - 15, 30, 30);
 
         ctx.fillStyle = "white";
         ctx.font = "12px Arial";
-        ctx.fillText(p.name, interpolated.x - camX, interpolated.y - camY - 25);
+        ctx.textAlign = "center";
+        ctx.fillText(p.name, pos.x - camX, pos.y - camY - 25);
     });
 }
 
